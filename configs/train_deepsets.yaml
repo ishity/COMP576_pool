@@ -1,0 +1,12 @@
+# Two-headed model: deepsets
+name: deepsets
+model: deepsets
+model_kwargs: {}
+data: data/smoke/states.npz
+use_skill: true
+seed: 0
+epochs: 40
+batch_size: 512
+lr: 1.0e-3
+weight_decay: 1.0e-4
+shot_weight: 1.0

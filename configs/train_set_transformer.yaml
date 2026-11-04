@@ -1,0 +1,12 @@
+# Two-headed model: set_transformer
+name: set_transformer
+model: set_transformer
+model_kwargs: {d: 128, layers: 4, heads: 4}
+data: data/smoke/states.npz
+use_skill: true
+seed: 0
+epochs: 40
+batch_size: 512
+lr: 5.0e-4
+weight_decay: 1.0e-4
+shot_weight: 1.0

@@ -1,0 +1,13 @@
+method,skill,mean,sem,n
+heuristic,beginner,0.296875,0.12373804956727856,8
+heuristic,expert,0.640625,0.12707540470973466,8
+heuristic,intermediate,0.796875,0.12652529214971775,8
+random,beginner,0.1640625,0.08674539085635287,8
+random,expert,0.2578125,0.15599868181391333,8
+random,intermediate,0.375,0.18298126367784998,8
+smoke_set_transformer,beginner,0.015625,0.010228963604812142,8
+smoke_set_transformer,expert,0.03125,0.03125,8
+smoke_set_transformer,intermediate,0.0,0.0,8
+teacher,beginner,0.359375,0.10481568644530265,8
+teacher,expert,0.6640625,0.12496511790081377,8
+teacher,intermediate,0.8125,0.1277597144754838,8
