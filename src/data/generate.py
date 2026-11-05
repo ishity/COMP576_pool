@@ -43,14 +43,26 @@ def _worker(args):
     return gid, "ok", len(out["win"]), dt
 
 
-def merge(out_dir: str) -> dict:
-    """Concatenate per-game files into one states.npz and return summary stats."""
+def merge(out_dir: str, contiguous: bool = False) -> dict:
+    """Concatenate per-game files into one states.npz and return summary stats.
+
+    With ``contiguous=True`` only games 0..g-1 are kept, where g is the first game id that
+    has not finished. Use this after stopping a run early: keeping every finished game would
+    over-represent short racks among the games that were still in flight.
+    """
     files = sorted(glob.glob(os.path.join(out_dir, "games", "game_*.npz")))
+    if contiguous:
+        done = {int(os.path.basename(f)[5:11]) for f in glob.glob(os.path.join(out_dir, "games", "game_*"))}
+        g = 0
+        while g in done:
+            g += 1
+        files = [f for f in files if int(os.path.basename(f)[5:11]) < g]
     parts = [dict(np.load(f)) for f in files]
     data = {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
     np.savez(os.path.join(out_dir, "states.npz"), **data)
     n_skip = len(glob.glob(os.path.join(out_dir, "games", "*.skip")))
-    return {"n_games": len(files), "n_discarded": n_skip, "n_states": int(len(data["win"]))}
+    return {"n_games": len(files), "n_discarded": n_skip, "n_states": int(len(data["win"])),
+            "max_game_id": int(data["game_id"].max())}
 
 
 def main():
@@ -58,8 +70,14 @@ def main():
     ap.add_argument("--config", required=True)
     ap.add_argument("--n_games", type=int, default=None, help="override config")
     ap.add_argument("--n_workers", type=int, default=None)
+    ap.add_argument("--merge_only", action="store_true", help="merge finished games (contiguous prefix) and exit")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config))
+    if a.merge_only:
+        summary = merge(cfg["out_dir"], contiguous=True)
+        json.dump(summary, open(os.path.join(cfg["out_dir"], "summary.json"), "w"), indent=2)
+        print(summary)
+        return
     n_games = a.n_games or cfg["n_games"]
     n_workers = a.n_workers or cfg["n_workers"]
     out_dir = cfg["out_dir"]

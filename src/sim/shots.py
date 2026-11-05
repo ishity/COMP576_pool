@@ -20,6 +20,9 @@ BALL_IDS: Tuple[str, ...] = ("cue",) + tuple(str(i) for i in range(1, 16))
 BALL_INDEX: Dict[str, int] = {b: i for i, b in enumerate(BALL_IDS)}
 POCKET_IDS: Tuple[str, ...] = ("lb", "lc", "lt", "rb", "rc", "rt")
 POCKET_INDEX: Dict[str, int] = {p: i for i, p in enumerate(POCKET_IDS)}
+# Event cap per simulated shot. A few configurations never terminate in pooltool 0.3.3
+# (observed: 2 racks hung for 16 h). Capped shots count as failures / discard the rack.
+MAX_EVENTS = 2000
 
 
 @dataclass(frozen=True)
@@ -167,12 +170,19 @@ def execute(system: pt.System, phi: float, V0: float, a: float, b: float) -> pt.
     """Simulate a shot on a copy of ``system`` (which must have empty history)."""
     shot = system.copy()
     shot.cue.set_state(V0=V0, phi=phi, a=a, b=b, theta=0.0, cue_ball_id="cue")
-    pt.simulate(shot, inplace=True)
+    pt.simulate(shot, inplace=True, max_events=MAX_EVENTS)
     return shot
+
+
+def hit_event_cap(shot: pt.System) -> bool:
+    """True if the simulation was cut off by MAX_EVENTS (ball states are then unreliable)."""
+    return len(shot.events) >= MAX_EVENTS
 
 
 def is_success(shot: pt.System, ball: str, pocket: str, hittable: Sequence[str]) -> bool:
     """Called ball in called pocket, no scratch, legal first contact, no early 8-ball."""
+    if hit_event_cap(shot):
+        return False
     if rutils.is_ball_pocketed(shot, "cue"):
         return False
     if rutils.get_id_of_first_ball_hit(shot, cue="cue") not in hittable:

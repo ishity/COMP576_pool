@@ -43,3 +43,44 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Splits are by game (game_id % 10: 0=test, 1=val, else train), so states from one rack never cross splits.
 
 ## Runs
+
+### [2026-11-04] smoke_data
+- Config: configs/data_smoke.yaml, seed=0
+- Goal: check that the generation pipeline works end to end and measure cost.
+- Result: 24 games, 0 discarded, 369 states, 10.9 min wall on 24 workers (16.6 s per state per worker).
+  Mean teacher success of the chosen shot: beginner 0.42 / intermediate 0.55 / expert 0.70.
+  17 of 24 racks ended with a legal 8-ball; the rest ended with an early or illegal 8-ball loss.
+- Outcome: success
+- Notes: racks are short (median 15 saved shots) because there are no safeties. Even experts
+  get only 0.73 best-candidate success because there is no position play, so the cue often ends up in a hard spot.
+
+### [2026-11-04] smoke_train (mlp, deepsets, set_transformer, cnn, heuristic)
+- Config: configs/train_*.yaml with --epochs 3, data=data/smoke, seed=0
+- Goal: confirm that every model trains and writes metrics/checkpoints.
+- Result: all four nets run (GPU inference 0.6 to 3.3 ms/state at batch size 1). Metrics are meaningless (~300 training states, 1 step/epoch).
+- Outcome: success (pipeline check only)
+
+### [2026-11-04] smoke_shot_eval
+- Command: python -m src.evaluate --data data/smoke/states.npz --runs results/smoke_set_transformer --n_states 8 --eval_rollouts 16
+- Goal: check fresh-rollout evaluation of recommended shots.
+- Result: runs in 3.0 min on 8 workers. Teacher search (24 candidates x 16 rollouts) takes 22.6 s per state per skill.
+- Outcome: success (pipeline check only; 8 states, so the numbers are noise)
+
+### [2026-11-04] main_data generation, throughput issue
+- Config: configs/data_main.yaml, seed=0 (2000 games planned)
+- Goal: about 30k states for the main training run.
+- Result: measured 2.45 states/s on 96 workers (21 s per state per worker; the node has 52 physical
+  cores with hyperthreading, so 96 workers do not give 96x speedup). The full 2000 games would take ~3.4 h.
+- Outcome: partial. To respect the "ask before >2 h jobs" rule we stopped at the 2 h mark and kept only
+  the contiguous prefix of finished game ids (`--merge_only`). This avoids biasing toward short racks.
+- Notes: the larger 50k/100k sets need explicit approval (~5.7 h for 50k, ~11 h for 100k at this rate).
+
+### [2026-11-04] dev_partial (Set Transformer / MLP / heuristic on partial main data)
+- Config: configs/train_set_transformer.yaml, configs/train_mlp.yaml, data=data/partial (first finished games), seed=0
+- Goal: sanity-check learning before the main run.
+- Result (test split):
+  - 1.3k states: Set Transformer win logloss 0.558, shot regret 0.269. Heuristic shot regret 0.135.
+    The model was worse than the heuristic at shot selection and overfit (val logloss rose after epoch 9).
+  - 3.7k states: Set Transformer logloss 0.544 / regret 0.116; MLP 0.525 / 0.109; heuristic 0.633 / 0.127.
+- Outcome: partial (development only; not reported as results)
+- Notes: shot quality improves quickly with data. With ~1k states the nets cannot even match the geometric heuristic.

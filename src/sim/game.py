@@ -6,7 +6,8 @@ Rules come from pooltool's built-in 8-ball ruleset (fouls, ball-in-hand, open ta
     the easiest geometric shot (pooltool itself only respots the cue at the head spot).
   * No safeties, no bank/kick shots: every shot is a called ghost-ball pot attempt.
   * The break is a fixed hard hit on the apex ball (with skill noise) and is not saved.
-  * Racks longer than ``max_shots`` are discarded (counted in the generation log).
+  * Racks longer than ``max_shots`` are discarded (counted in the generation log), and so are
+    racks in which a real shot hits pooltool's event cap (``MAX_EVENTS``).
 """
 from __future__ import annotations
 
@@ -26,7 +27,9 @@ from src.sim.shots import (
     POCKET_INDEX,
     Candidate,
     Skill,
+    MAX_EVENTS,
     add_noise,
+    hit_event_cap,
     estimate_success,
     generate_candidates,
     is_success,
@@ -220,7 +223,9 @@ def play_game(
 
         shot = system.copy()
         shot.cue.set_state(V0=V0, phi=phi, a=a, b=b, theta=0.0, cue_ball_id="cue")
-        pt.simulate(shot, inplace=True)
+        pt.simulate(shot, inplace=True, max_events=MAX_EVENTS)
+        if hit_event_cap(shot):
+            return None  # non-terminating simulation: discard the rack
         if entry is not None:
             entry["chosen_success"] = float(is_success(shot, cands[k].ball, cands[k].pocket, hittable))
             rec.append(entry)
