@@ -154,7 +154,7 @@ POCKETS_XY = {0: (0, 0), 1: (0, 0.9906), 2: (0, 1.9812), 3: (0.9906, 0), 4: (0.9
 def draw_table(ax, pos, on, roles):
     """Top-down table with balls colored by role relative to the shooter."""
     from matplotlib.patches import Circle, Rectangle
-    ax.add_patch(Rectangle((0, 0), 0.9906, 1.9812, fc="#e8f1ea", ec=TEXT2, lw=1))
+    ax.add_patch(Rectangle((0, 0), 0.9906, 1.9812, fc="#f2f4f1", ec=TEXT2, lw=1))
     for x, y in POCKETS_XY.values():
         ax.add_patch(Circle((x, y), 0.06, fc="#52514e", ec="none"))
     for i in range(16):

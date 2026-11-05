@@ -124,7 +124,7 @@ def main():
     run = a.tag or cfg["name"]
     out_dir = os.path.join("results", run)
     os.makedirs(out_dir, exist_ok=True)
-    yaml.safe_dump(cfg, open(os.path.join(out_dir, "config.yaml"), "w"))
+    yaml.safe_dump(cfg, open(os.path.join(out_dir, "config.yaml"), "w"), sort_keys=False)
     set_seed(cfg["seed"])
     dev = "cuda" if torch.cuda.is_available() else "cpu"
 

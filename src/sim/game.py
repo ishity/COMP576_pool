@@ -11,6 +11,7 @@ Rules come from pooltool's built-in 8-ball ruleset (fouls, ball-in-hand, open ta
 """
 from __future__ import annotations
 
+import random
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
@@ -150,13 +151,21 @@ def play_game(
     skill_idx: Sequence[int],
     cfg: dict,
     seed: int,
+    shot_log: Optional[list] = None,
 ) -> Optional[Dict[str, np.ndarray]]:
     """Play one rack and return stacked arrays of all saved pre-shot states.
 
     Returns None if the rack exceeded ``max_shots`` or ended before any saved shot.
+    If ``shot_log`` is a list, one dict per saved shot is appended with pooltool's verdict
+    (legal, foul reason, turn over, balls pocketed). Logging consumes no randomness, so a
+    replay with the same seed reproduces the generated game exactly.
     """
     rng = np.random.default_rng(seed)
-    np.random.seed(seed % (2**32))  # pooltool's rack generator uses the global RNG
+    # pooltool's rack generator uses BOTH global RNGs: numpy for position jitter and python's
+    # `random` for which ball goes where. Data generated before 2026-11-05 seeded only numpy,
+    # so those racks cannot be replayed exactly (see EXPERIMENTS.md).
+    np.random.seed(seed % (2**32))
+    random.seed(seed)
     speeds = cfg["speeds"]
     top_k = cfg["top_k_pairs"]
     M = cfg["n_rollouts"]
@@ -230,6 +239,16 @@ def play_game(
             entry["chosen_success"] = float(is_success(shot, cands[k].ball, cands[k].pocket, hittable))
             rec.append(entry)
         game.process_and_advance(shot)
+        if entry is not None:
+            entry["shot_legal"] = float(game.shot_info.legal)
+            entry["shot_turn_over"] = float(game.shot_info.turn_over)
+        if entry is not None and shot_log is not None:
+            from pooltool.ruleset.utils import get_pocketed_ball_ids_during_shot
+
+            info = game.shot_info
+            shot_log.append({"legal": info.legal, "reason": info.reason, "turn_over": info.turn_over,
+                             "game_over": info.game_over,
+                             "pocketed": get_pocketed_ball_ids_during_shot(shot, exclude={"cue"})})
         system = shot
         if game.shot_info.game_over:
             winner = game.players.index(game.shot_info.winner)

@@ -1,0 +1,182 @@
+[
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "15"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "14"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": [
+   "10"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "7"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "3"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "1"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": false,
+  "reason": "First contact wasn't made with target balls",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "12"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "13"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "11"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": false,
+  "reason": "Cue ball in pocket!",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "9"
+  ]
+ },
+ {
+  "legal": false,
+  "reason": "First contact wasn't made with target balls",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": [
+   "6"
+  ]
+ },
+ {
+  "legal": false,
+  "reason": "Cue ball in pocket!",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": false,
+  "reason": "Cue ball in pocket!",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": false,
+  "pocketed": [
+   "2"
+  ]
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": true,
+  "game_over": false,
+  "pocketed": []
+ },
+ {
+  "legal": true,
+  "reason": "",
+  "turn_over": false,
+  "game_over": true,
+  "pocketed": [
+   "8"
+  ]
+ }
+]

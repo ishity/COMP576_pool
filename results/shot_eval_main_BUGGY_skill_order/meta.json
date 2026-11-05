@@ -1,0 +1,14 @@
+{
+  "n_states": 300,
+  "teacher_rollouts": 16,
+  "eval_rollouts": 64,
+  "teacher_seconds_per_state_mean": 22.939146431816948,
+  "wall_minutes": 20.85359947681427,
+  "runs": [
+    "results/set_transformer",
+    "results/set_transformer_noskill",
+    "results/cnn",
+    "results/mlp",
+    "results/deepsets"
+  ]
+}

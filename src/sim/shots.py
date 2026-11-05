@@ -50,9 +50,17 @@ class Candidate:
     heuristic: float  # lower = easier (straighter, shorter)
 
 
+SKILL_ORDER: Tuple[str, ...] = ("beginner", "intermediate", "expert")
+
+
 def skills_from_config(cfg: dict) -> List[Skill]:
-    """Build the ordered list of skill levels from the ``skills`` config section."""
-    return [Skill(name=k, **v) for k, v in cfg.items()]
+    """Build the skill list in the fixed order beginner, intermediate, expert (index 0, 1, 2).
+
+    The order is fixed here instead of taken from the dict, because a YAML round trip with
+    sorted keys silently reorders the levels (this happened once; see EXPERIMENTS.md).
+    """
+    assert set(cfg) == set(SKILL_ORDER), f"skills must be exactly {SKILL_ORDER}, got {list(cfg)}"
+    return [Skill(name=k, **cfg[k]) for k in SKILL_ORDER]
 
 
 def on_table(system: pt.System, ball_id: str) -> bool:

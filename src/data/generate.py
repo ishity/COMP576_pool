@@ -58,7 +58,8 @@ def merge(out_dir: str, contiguous: bool = False) -> dict:
             g += 1
         files = [f for f in files if int(os.path.basename(f)[5:11]) < g]
     parts = [dict(np.load(f)) for f in files]
-    data = {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
+    keys = set.intersection(*[set(p) for p in parts])  # older games lack the shot_legal fields
+    data = {k: np.concatenate([p[k] for p in parts]) for k in sorted(keys)}
     np.savez(os.path.join(out_dir, "states.npz"), **data)
     n_skip = len(glob.glob(os.path.join(out_dir, "games", "*.skip")))
     return {"n_games": len(files), "n_discarded": n_skip, "n_states": int(len(data["win"])),
@@ -83,7 +84,7 @@ def main():
     out_dir = cfg["out_dir"]
     os.makedirs(os.path.join(out_dir, "games"), exist_ok=True)
     with open(os.path.join(out_dir, "config.yaml"), "w") as f:
-        yaml.safe_dump(cfg, f)
+        yaml.safe_dump(cfg, f, sort_keys=False)
 
     t0 = time.time()
     n_states = 0

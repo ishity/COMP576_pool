@@ -1,0 +1,15 @@
+batch_size: 512
+data: data/main/states.npz
+epochs: 40
+lr: 0.0005
+max_train_states: 10000
+model: set_transformer
+model_kwargs:
+  d: 128
+  heads: 4
+  layers: 4
+name: set_transformer
+seed: 0
+shot_weight: 1.0
+use_skill: true
+weight_decay: 0.0001

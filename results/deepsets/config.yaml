@@ -1,0 +1,12 @@
+batch_size: 512
+data: data/main/states.npz
+epochs: 40
+lr: 0.001
+max_train_states: null
+model: deepsets
+model_kwargs: {}
+name: deepsets
+seed: 0
+shot_weight: 1.0
+use_skill: true
+weight_decay: 0.0001

@@ -1,0 +1,114 @@
+[
+ {
+  "game_id": 10000000,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 22,
+  "n_pot": 11,
+  "n_miss": 6,
+  "n_foul": 5,
+  "skills": [
+   0,
+   1
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000010,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 13,
+  "n_pot": 9,
+  "n_miss": 4,
+  "n_foul": 0,
+  "skills": [
+   2,
+   1
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000020,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 15,
+  "n_pot": 6,
+  "n_miss": 5,
+  "n_foul": 4,
+  "skills": [
+   2,
+   0
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000030,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 18,
+  "n_pot": 11,
+  "n_miss": 4,
+  "n_foul": 3,
+  "skills": [
+   2,
+   2
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000040,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 19,
+  "n_pot": 10,
+  "n_miss": 5,
+  "n_foul": 4,
+  "skills": [
+   0,
+   2
+  ],
+  "shooter0": 0
+ },
+ {
+  "game_id": 10000050,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 21,
+  "n_pot": 12,
+  "n_miss": 8,
+  "n_foul": 1,
+  "skills": [
+   0,
+   2
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000060,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 17,
+  "n_pot": 10,
+  "n_miss": 6,
+  "n_foul": 1,
+  "skills": [
+   0,
+   2
+  ],
+  "shooter0": 1
+ },
+ {
+  "game_id": 10000070,
+  "discarded": false,
+  "deterministic": true,
+  "n_shots": 13,
+  "n_pot": 8,
+  "n_miss": 1,
+  "n_foul": 4,
+  "skills": [
+   1,
+   0
+  ],
+  "shooter0": 1
+ }
+]

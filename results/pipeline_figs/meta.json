@@ -1,0 +1,37 @@
+{
+  "game_for_fig2": {
+    "game_id": 10000000,
+    "discarded": false,
+    "deterministic": true,
+    "n_shots": 22,
+    "n_pot": 11,
+    "n_miss": 6,
+    "n_foul": 5,
+    "skills": [
+      0,
+      1
+    ],
+    "shooter0": 1
+  },
+  "win_model": "set_transformer",
+  "fig2_p0_first": 0.7214478850364685,
+  "fig2_p0_last": 0.8482510447502136,
+  "foul_reasons": [
+    "First contact wasn't made with target balls",
+    "Cue ball in pocket!",
+    "First contact wasn't made with target balls",
+    "Cue ball in pocket!",
+    "Cue ball in pocket!"
+  ],
+  "state_for_fig1_fig3": 933,
+  "state_game_id": 60,
+  "state_skill": "beginner",
+  "n_candidate_states_checked": 12,
+  "m_ref": 64,
+  "beginner_best": 4,
+  "expert_best": 2,
+  "beginner_best_succ_beginner": 0.578125,
+  "expert_best_succ_expert": 0.9375,
+  "expert_pick_succ_beginner": 0.140625,
+  "beginner_pick_succ_expert": 0.859375
+}
