@@ -244,3 +244,13 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
   Possible fixes for later: a perspective-consistency loss on consecutive states, or a
   skill-pair calibration step. Added this turnover statistic to the comparison so it can be
   tracked across seeds.
+
+### [2026-11-06] relabel at all three skills: runtime pilot
+- Config: src/data/relabel.py --pilot 384, data/main/states.npz, M=16, same stored candidates, 96 workers, seed=20261106
+- Goal: estimate the runtime of relabeling all 21,521 states at beginner, intermediate and expert before launching it.
+- Result: 384 random states in 15.2 min wall. 69.1 CPU-s per state for all three skills (p99 476 s, a heavy tail
+  from long simulations). Estimate for all states: 69.1 x 21,521 / 96 = 4.3 h (plus straggler tail).
+- Outcome: success
+- Notes: approved as an overnight job. Every skill is re-estimated, including the shooter's own skill, so
+  the stored label vs. the new own-skill label also gives a direct M=16 vs M=16 label-noise measurement.
+  The pilot states are recomputed in the full run (different random stream is not needed; the pilot output is not reused).
