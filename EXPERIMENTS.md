@@ -290,3 +290,50 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
     (0.111 vs 0.112), consistent with the shot evaluation.
   * The Set Transformer's turnover inconsistency (0.70 at seed 0) varies widely across seeds (0.46 ± 0.22),
     so the rise in the held-out win curve is partly a seed-0 artifact; it is not a stable property.
+
+### [2026-11-06] shot_eval_main_v2 (reproduction + full teacher vectors + cross-skill)
+- Config: src/evaluate.py, same arguments as shot_eval_main (300 test states, seed=0, teacher M=16, R=64,
+  same five runs in the same order); new outputs teacher_vectors.npz, per_state_cross.csv, summary_cross.csv
+- Goal: the first evaluation saved only the teacher estimate of picked candidates, so the full per-skill
+  teacher vectors needed for the skill-dependence analysis were not on disk. Rerun with the same seeds to
+  regenerate exactly those estimates, and add cross-skill execution on a separate random stream.
+- Result: 7,191 of 7,200 rows of per_state.csv are identical to shot_eval_main; 9 rows in 2 states differ
+  (one model pick changed, which shifts the random stream inside that state). summary.csv is identical to
+  3 decimals (teacher 0.319 / 0.575 / 0.769, Set Transformer 0.289 / 0.525 / 0.705). 22.8 min wall, 96 workers.
+- Outcome: success
+- Notes: the teacher vectors here are therefore the "existing" per-skill estimates up to those 2 states.
+
+### [2026-11-06] skill dependence of the teacher
+- Config: src/skill_dependence.py on results/shot_eval_main_v2 -> results/skill_dependence/summary.json,
+  figures/fig_skill_dependence.{png,pdf}
+- Goal: how often does the best shot depend on skill, and how much does a player lose by playing another
+  skill's best shot?
+- Result (300 test states, teacher argmax over M=16 estimates):
+
+  | pair | best candidate differs | different ball or pocket |
+  |---|---|---|
+  | beginner vs intermediate | 0.613 | 0.193 |
+  | beginner vs expert | 0.653 | 0.237 |
+  | intermediate vs expert | 0.503 | 0.173 |
+  | noise floor (same skill, stored label vs eval teacher, both M=16) | 0.493 | 0.107 |
+
+  Success lost by a player of skill X playing skill Y's best shot instead of their own, both measured with
+  fresh 64-rollout estimates (mean ± s.e. over 300 states; own-best success on the diagonal):
+
+  | executing \ best shot of | beginner | intermediate | expert |
+  |---|---|---|---|
+  | beginner | (0.319) | 0.005 ± 0.005 | 0.024 ± 0.007 |
+  | intermediate | 0.028 ± 0.006 | (0.575) | 0.017 ± 0.005 |
+  | expert | 0.069 ± 0.010 | 0.013 ± 0.004 | (0.769) |
+
+  For reference, the same quantity from the M=16 teacher vectors themselves is 0.04 to 0.11, inflated by
+  the winner's curse (the own argmax is selected on the same noisy estimates).
+- Outcome: success (measurement), weak effect
+- Notes: most "best shot changes" are label noise: two M=16 estimates at the SAME skill disagree on the
+  argmax 49% of the time, close to the 50 to 65% seen across skills. Changes of ball or pocket are about 2x the
+  noise floor (0.17 to 0.24 vs 0.11), so a real but modest fraction of states is skill-dependent. The cost of
+  ignoring skill is small: a beginner playing the expert's best shot loses 2.4 points (7.6% relative), and the
+  largest loss is the reverse direction (expert playing the beginner's choice, 6.9 points). This bounds what
+  any skill-conditioned shot head can gain at the shooter's own skill and explains why the no-skill model
+  ties the skill-conditioned one. Important framing for the poster: within our candidate set (ghost-ball
+  pots, 3 speeds, no spin) skill mostly changes how likely a shot is, not which shot is best.

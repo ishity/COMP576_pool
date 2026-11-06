@@ -8,6 +8,12 @@ For N test states and every skill level s, each method picks one candidate shot:
 The picked shot is then executed R times with skill-s noise (independent rollouts) and we
 report the success rate (called ball in called pocket, no foul).
 
+Cross-skill evaluation (per_state_cross.csv): every method's pick for skill A is also executed
+with skill-B noise for B != A (R rollouts, separate random stream, so the per_state.csv numbers
+are unchanged by adding it). With the teacher this measures how much success a skill-B player
+loses by playing a skill-A player's best shot. The full teacher vectors (every candidate, every
+skill) are saved to teacher_vectors.npz.
+
 Usage:
     python -m src.evaluate --data data/<set>/states.npz --runs results/a results/b \
         --n_states 300 --out results/shot_eval_<tag>
@@ -36,13 +42,16 @@ def model_picks(run_dir: str, d: dict, idx: np.ndarray, dev: str) -> np.ndarray:
     """(3, N) candidate index picked by a trained model for each forced skill level."""
     ck = torch.load(os.path.join(run_dir, "best.pt"), map_location=dev)
     cfg = ck["cfg"]
-    model = build_model(cfg["model"], ck["cand_f"], use_skill=cfg["use_skill"], **cfg.get("model_kwargs", {})).to(dev)
+    model = build_model(cfg["model"], ck["cand_f"], use_skill=cfg["use_skill"],
+                        shot_outputs=int(cfg.get("shot_outputs", 1)), **cfg.get("model_kwargs", {})).to(dev)
     model.load_state_dict(ck["model"])
     t = to_tensors(d, idx, dev)
     out = []
     for s in range(3):
         t["skill_self"] = torch.full_like(t["skill_self"], s)
         _, ps = predict(model, t)
+        if ps.ndim == 3:  # three-output head: take the output for skill s
+            ps = ps[..., s]
         ps = np.where(t["cand_mask"].cpu().numpy() > 0, ps, -1.0)
         out.append(ps.argmax(1))
     return np.stack(out)
@@ -65,10 +74,14 @@ def _eval_state(args):
     ]
     rng = np.random.default_rng(cfg["seed"] * 7919 + i)
     rows = []
+    teacher_vec = np.zeros((len(st["cand_mask"]), 3), np.float32)
+    done = {}  # (exec skill, candidate) -> fresh success rate
+    picks_at = {}  # cond skill -> {method: pick}
     for s, skill in enumerate(skills):
         t0 = time.time()
         p_teacher = estimate_success(system, cands, hittable, skill, cfg["teacher_rollouts"], rng)
         t_teacher = time.time() - t0
+        teacher_vec[:n, s] = p_teacher
         method_pick = {m: int(p[s]) for m, p in picks.items()}
         method_pick["teacher"] = int(np.argmax(p_teacher))
         method_pick["random"] = int(rng.integers(n))
@@ -79,7 +92,20 @@ def _eval_state(args):
             rows.append({"state": i, "skill": SKILL_NAMES[s], "method": m, "pick": k, "success": cache[k],
                          "teacher_est": float(p_teacher[k]), "teacher_seconds": t_teacher,
                          "is_teacher_pick": k == method_pick["teacher"]})
-    return rows
+        done.update({(s, k): v for k, v in cache.items()})
+        picks_at[s] = {m: k for m, k in method_pick.items() if m != "random"}
+    if not cfg.get("cross", True):
+        return rows, [], i, teacher_vec
+    rng2 = np.random.default_rng([cfg["seed"], i, 99])
+    cross = []
+    for a, mp in picks_at.items():
+        for m, k in mp.items():
+            for b in range(3):
+                if (b, k) not in done:
+                    done[(b, k)] = float(estimate_success(system, [cands[k]], hittable, skills[b], cfg["eval_rollouts"], rng2)[0])
+                cross.append({"state": i, "method": m, "cond_skill": SKILL_NAMES[a], "exec_skill": SKILL_NAMES[b],
+                              "pick": k, "success": done[(b, k)], "teacher_est_exec": float(teacher_vec[k, b])})
+    return rows, cross, i, teacher_vec
 
 
 def main():
@@ -92,6 +118,7 @@ def main():
     ap.add_argument("--n_workers", type=int, default=96)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--no_cross", action="store_true", help="skip the cross-skill evaluation")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     import yaml
@@ -107,18 +134,30 @@ def main():
     for r in a.runs:
         picks[os.path.basename(r.rstrip("/"))] = model_picks(r, d, idx, dev)
 
-    cfg = {"skills": data_cfg["skills"], "teacher_rollouts": a.teacher_rollouts, "eval_rollouts": a.eval_rollouts, "seed": a.seed}
+    cfg = {"skills": data_cfg["skills"], "teacher_rollouts": a.teacher_rollouts, "eval_rollouts": a.eval_rollouts, "seed": a.seed,
+           "cross": not a.no_cross}
     keys = ["pos", "on_table", "hittable", "cand_meta", "cand_params", "cand_mask"]
     jobs = [(int(i), {k: d[k][i] for k in keys}, {m: p[:, j] for m, p in picks.items()}, cfg) for j, i in enumerate(idx)]
-    rows = []
+    rows, cross, tv = [], [], {}
     t0 = time.time()
     with Pool(a.n_workers) as pool:
-        for j, r in enumerate(pool.imap_unordered(_eval_state, jobs)):
+        for j, (r, c, i, vec) in enumerate(pool.imap_unordered(_eval_state, jobs)):
             rows += r
+            cross += c
+            tv[i] = vec
             if (j + 1) % max(1, len(jobs) // 10) == 0:
                 print(f"[{j+1}/{len(jobs)}] {(time.time()-t0)/60:.1f} min", flush=True)
     df = pd.DataFrame(rows)
+    df = df.sort_values(["state", "skill", "method"], kind="stable")
     df.to_csv(os.path.join(a.out, "per_state.csv"), index=False)
+    np.savez(os.path.join(a.out, "teacher_vectors.npz"), state=idx, teacher=np.stack([tv[int(i)] for i in idx]),
+             cand_mask=d["cand_mask"][idx])
+    if cross:
+        cr = pd.DataFrame(cross).sort_values(["state", "method", "cond_skill", "exec_skill"], kind="stable")
+        cr.to_csv(os.path.join(a.out, "per_state_cross.csv"), index=False)
+        g2 = cr.groupby(["method", "cond_skill", "exec_skill"])["success"]
+        pd.DataFrame({"mean": g2.mean(), "sem": g2.sem(), "n": g2.count()}).reset_index().to_csv(
+            os.path.join(a.out, "summary_cross.csv"), index=False)
     g = df.groupby(["method", "skill"])["success"]
     summ = pd.DataFrame({"mean": g.mean(), "sem": g.sem(), "n": g.count()}).reset_index()
     summ.to_csv(os.path.join(a.out, "summary.csv"), index=False)
