@@ -253,7 +253,7 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Outcome: success
 - Notes: approved as an overnight job. Every skill is re-estimated, including the shooter's own skill, so
   the stored label vs. the new own-skill label also gives a direct M=16 vs M=16 label-noise measurement.
-  The pilot states are recomputed in the full run (different random stream is not needed; the pilot output is not reused).
+  The pilot output is not reused; the full run recomputes every state.
 
 ### [2026-11-06] seeds 0, 1, 2 for the main models and the size ablation
 - Config: scripts/train_seeds.sh (seeds 1, 2; seed 0 = the 2026-11-05 runs), same configs as train_all.sh;

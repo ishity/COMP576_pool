@@ -51,6 +51,29 @@ def _job(args):
     return i, out, time.time() - t0
 
 
+def compare(d: dict, lab3: np.ndarray) -> dict:
+    """Label noise (stored label vs. new label at the shooter's own skill, both M rollouts) and the
+    fraction of states whose best candidate differs between skills, over all states."""
+    m = d["cand_mask"] > 0
+    n = len(m)
+    own = lab3[np.arange(n), :, d["skill_self"]]
+    st = d["cand_label"]
+    arg = lambda x: np.where(m, x, -1.0).argmax(1)  # noqa: E731
+    bp = lambda k: d["cand_meta"][np.arange(n), k, :2]  # noqa: E731
+    a_st, a_own = arg(st), arg(own)
+    out = {"label_noise": {"mae": float(np.abs(st - own)[m].mean()), "corr": float(np.corrcoef(st[m], own[m])[0, 1]),
+                           "argmax_agree": float((a_st == a_own).mean()),
+                           "ball_pocket_agree": float((bp(a_st) == bp(a_own)).all(1).mean()),
+                           "regret_of_stored_argmax_under_new": float((own.max(1, where=m, initial=0) - own[np.arange(n), a_st]).mean())}}
+    best = [arg(lab3[..., s]) for s in range(3)]
+    names = ["beginner", "intermediate", "expert"]
+    out["skill_dependence_all_states"] = {
+        f"{names[x]}-{names[y]}": {"frac_best_differs": float((best[x] != best[y]).mean()),
+                                   "frac_ball_or_pocket_differs": float((bp(best[x]) != bp(best[y])).any(1).mean())}
+        for x, y in [(0, 1), (0, 2), (1, 2)]}
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
@@ -77,7 +100,7 @@ def main():
             secs[z["idx"]] = z["seconds"]
         assert not np.isnan(lab).any(), f"{np.isnan(secs).sum()} states missing"
         np.savez_compressed(os.path.join(a.out, "labels3.npz"), cand_label3=lab, seconds=secs)
-        json.dump({**cfg, "n_states": N, "cpu_hours": float(secs.sum() / 3600)},
+        json.dump({**cfg, "n_states": N, "cpu_hours": float(secs.sum() / 3600), **compare(d, lab)},
                   open(os.path.join(a.out, "meta.json"), "w"), indent=2, sort_keys=False)
         print("merged", lab.shape, "cpu hours", secs.sum() / 3600)
         return
