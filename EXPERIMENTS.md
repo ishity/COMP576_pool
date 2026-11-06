@@ -254,3 +254,39 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Notes: approved as an overnight job. Every skill is re-estimated, including the shooter's own skill, so
   the stored label vs. the new own-skill label also gives a direct M=16 vs M=16 label-noise measurement.
   The pilot states are recomputed in the full run (different random stream is not needed; the pilot output is not reused).
+
+### [2026-11-06] seeds 0, 1, 2 for the main models and the size ablation
+- Config: scripts/train_seeds.sh (seeds 1, 2; seed 0 = the 2026-11-05 runs), same configs as train_all.sh;
+  aggregated with src/aggregate_seeds.py -> results/seeds_summary.csv, results/seeds_summary_per_seed.csv
+- Goal: separate real differences from seed noise; resolve the non-monotonic size ablation.
+- Result (test, mean ± std over 3 seeds; turnover = fraction of test turnovers after which the former
+  shooter's predicted win probability went up, see the win-curve check):
+
+  | run | train states | win log loss | Brier | ECE | shot regret | shot top-1 | turnover up |
+  |---|---|---|---|---|---|---|---|
+  | LR skills + counts (deterministic) | 17,127 | 0.541 | 0.180 | 0.070 | n/a | n/a | 0.38 |
+  | heuristic (deterministic) | 17,127 | 0.621 | 0.216 | 0.046 | 0.129 | 0.182 | 0.10 |
+  | Set Transformer | 17,127 | 0.558 ± 0.012 | 0.187 ± 0.005 | 0.046 ± 0.010 | 0.111 ± 0.003 | 0.33 ± 0.04 | 0.46 ± 0.22 |
+  | Set Transformer, no skill | 17,127 | 0.623 ± 0.007 | 0.217 ± 0.003 | 0.025 ± 0.002 | 0.112 ± 0.002 | 0.37 ± 0.03 | 0.15 ± 0.01 |
+  | MLP | 17,127 | 0.570 ± 0.001 | 0.192 ± 0.000 | 0.053 ± 0.004 | 0.116 ± 0.001 | 0.37 ± 0.06 | 0.31 ± 0.09 |
+  | DeepSets | 17,127 | 0.551 ± 0.004 | 0.184 ± 0.001 | 0.035 ± 0.004 | 0.110 ± 0.002 | 0.34 ± 0.01 | 0.46 ± 0.06 |
+  | CNN | 17,127 | 0.611 ± 0.043 | 0.208 ± 0.017 | 0.092 ± 0.066 | 0.119 ± 0.001 | 0.42 ± 0.10 | 0.72 ± 0.22 |
+  | Set Transformer 1k | ~1,010 | 0.560 ± 0.019 | 0.188 ± 0.008 | 0.064 ± 0.025 | 0.274 ± 0.017 | 0.20 ± 0.07 | 0.34 ± 0.21 |
+  | Set Transformer 3k | ~3,006 | 0.607 ± 0.014 | 0.201 ± 0.008 | 0.066 ± 0.007 | 0.126 ± 0.005 | 0.24 ± 0.07 | 0.46 ± 0.14 |
+  | Set Transformer 10k | ~10,010 | 0.571 ± 0.006 | 0.193 ± 0.002 | 0.060 ± 0.025 | 0.116 ± 0.001 | 0.29 ± 0.05 | 0.55 ± 0.25 |
+
+- Outcome: success (runs), with failures: cnn_s1 and cnn_s2 first crashed with CUDA OOM because GPUs 2 and 3
+  were occupied by another (unrelated) job; rerun on GPUs 4 and 5, results above are from the reruns.
+  train_seeds.sh now takes a GPUS list.
+- Notes:
+  * Shot regret falls monotonically with data (0.274, 0.126, 0.116, 0.111) and the seed std is small, so the
+    shot-head size trend is real. Win log loss is not monotonic in any seed pattern: 1k (0.560) is as good as
+    the full set. Our reading: at 1k the win head can only learn the skill-matchup prior (LR on skills alone
+    gives 0.560), while at 3k to 10k it starts fitting ball positions and overfits. Combined with the LR
+    result, the win head gets almost nothing from positions beyond ball counts at this data scale.
+  * DeepSets and Set Transformer are within seed noise of each other on every metric; DeepSets is more
+    stable (std 0.004 vs 0.012 log loss). CNN is worst and unstable (best epoch is always 2, then overfits).
+  * Skill input matters for win prediction (0.558 vs 0.623) but not for regret at the shooter's own skill
+    (0.111 vs 0.112), consistent with the shot evaluation.
+  * The Set Transformer's turnover inconsistency (0.70 at seed 0) varies widely across seeds (0.46 ± 0.22),
+    so the rise in the held-out win curve is partly a seed-0 artifact; it is not a stable property.

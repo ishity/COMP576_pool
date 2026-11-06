@@ -3,10 +3,11 @@
 # Usage: bash scripts/train_seeds.sh data/main/states.npz "1 2"
 DATA=${1:-data/main/states.npz}
 SEEDS=${2:-"1 2"}
+GPUS=(${GPUS:-0 1 2 3 4 5 6 7})   # e.g. GPUS="0 1 4 5 6 7" to skip busy GPUs
 source .venv/bin/activate
 mkdir -p results/logs
-gpu=0
-run() { tag=$1; shift; CUDA_VISIBLE_DEVICES=$gpu python -m src.train --data $DATA --tag $tag "$@" > results/logs/$tag.log 2>&1 & gpu=$(( (gpu + 1) % 8 )); }
+j=0
+run() { tag=$1; shift; CUDA_VISIBLE_DEVICES=${GPUS[$((j % ${#GPUS[@]}))]} python -m src.train --data $DATA --tag $tag "$@" > results/logs/$tag.log 2>&1 & j=$((j + 1)); }
 for s in $SEEDS; do
   run set_transformer_s$s          --config configs/train_set_transformer.yaml --seed $s
   run set_transformer_noskill_s$s  --config configs/train_set_transformer.yaml --use_skill 0 --seed $s

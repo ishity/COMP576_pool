@@ -1,0 +1,12 @@
+name: deepsets
+model: deepsets
+model_kwargs: {}
+data: data/main/states.npz
+use_skill: true
+seed: 1
+epochs: 40
+batch_size: 512
+lr: 0.001
+weight_decay: 0.0001
+shot_weight: 1.0
+max_train_states: null
