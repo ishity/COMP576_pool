@@ -2,7 +2,9 @@
 
 All models take the batch dict from ``src.data.dataset.to_tensors`` and return
 ``(win_logit (B,), shot_logit (B,K))``. ``use_skill=False`` removes skill information
-(the skill-agnostic ablation).
+(the skill-agnostic ablation). With ``shot_outputs=3`` the shot head does not see the skill
+and instead outputs one logit per skill level, ``shot_logit (B,K,3)`` (trained on labels
+estimated at all three skills, see src.data.relabel).
 """
 from __future__ import annotations
 
@@ -29,14 +31,18 @@ def mlp(sizes, act=nn.GELU, last_act=False):
 class TwoHeadBase(nn.Module):
     """Shared skill embeddings and the two heads. Subclasses implement ``encode``."""
 
-    def __init__(self, z_dim: int, tok_dim: int, cand_f: int, use_skill: bool = True, skill_dim: int = 16):
+    def __init__(self, z_dim: int, tok_dim: int, cand_f: int, use_skill: bool = True, skill_dim: int = 16,
+                 shot_outputs: int = 1):
         super().__init__()
+        assert shot_outputs in (1, N_SKILLS)
         self.use_skill = use_skill
+        self.shot_outputs = shot_outputs
         self.skill_dim = skill_dim
         self.skill_emb = nn.Embedding(N_SKILLS, skill_dim)
         self.pocket_emb = nn.Embedding(6, 8)
         self.win_head = mlp([z_dim + 2 * skill_dim, 256, 1])
-        self.shot_head = mlp([z_dim + tok_dim + 8 + cand_f + skill_dim, 256, 256, 1])
+        shot_skill = skill_dim if shot_outputs == 1 else 0
+        self.shot_head = mlp([z_dim + tok_dim + 8 + cand_f + shot_skill, 256, 256, shot_outputs])
 
     def skills(self, b):
         s, o = self.skill_emb(b["skill_self"]), self.skill_emb(b["skill_opp"])
@@ -60,18 +66,19 @@ class TwoHeadBase(nn.Module):
                 tok,
                 self.pocket_emb(b["cand_pocket"]),
                 b["cand_feats"],
-                s[:, None].expand(-1, K, -1),
-            ],
+            ]
+            + ([s[:, None].expand(-1, K, -1)] if self.shot_outputs == 1 else []),
             -1,
         )
-        return win, self.shot_head(x).squeeze(-1)
+        shot = self.shot_head(x)
+        return win, shot.squeeze(-1) if self.shot_outputs == 1 else shot
 
 
 class MLPNet(TwoHeadBase):
     """Model 2: MLP on the flattened, padded set representation (fixed ball order)."""
 
-    def __init__(self, cand_f, use_skill=True, hidden=512, z_dim=256):
-        super().__init__(z_dim, BALL_F, cand_f, use_skill)
+    def __init__(self, cand_f, use_skill=True, hidden=512, z_dim=256, shot_outputs=1):
+        super().__init__(z_dim, BALL_F, cand_f, use_skill, shot_outputs=shot_outputs)
         self.enc = mlp([16 * (BALL_F + 1) + GLOB_F + 2 * self.skill_dim, hidden, hidden, z_dim], last_act=True)
 
     def encode(self, b, s, o):
@@ -82,8 +89,8 @@ class MLPNet(TwoHeadBase):
 class DeepSets(TwoHeadBase):
     """Permutation-invariant DeepSets encoder (masked sum + max pooling)."""
 
-    def __init__(self, cand_f, use_skill=True, d=128, z_dim=256):
-        super().__init__(z_dim, d, cand_f, use_skill)
+    def __init__(self, cand_f, use_skill=True, d=128, z_dim=256, shot_outputs=1):
+        super().__init__(z_dim, d, cand_f, use_skill, shot_outputs=shot_outputs)
         self.phi = mlp([BALL_F, d, d, d], last_act=True)
         self.rho = mlp([2 * d + GLOB_F + 2 * self.skill_dim, z_dim, z_dim], last_act=True)
 
@@ -102,8 +109,8 @@ class SetTransformer(TwoHeadBase):
     ball-token outputs feed the shot head for the candidate's object ball.
     """
 
-    def __init__(self, cand_f, use_skill=True, d=128, layers=4, heads=4, z_dim=256, dropout=0.0):
-        super().__init__(z_dim, d, cand_f, use_skill)
+    def __init__(self, cand_f, use_skill=True, d=128, layers=4, heads=4, z_dim=256, dropout=0.0, shot_outputs=1):
+        super().__init__(z_dim, d, cand_f, use_skill, shot_outputs=shot_outputs)
         self.ball_in = mlp([BALL_F, d, d])
         self.glob_in = mlp([GLOB_F + 2 * self.skill_dim, d, d])
         layer = nn.TransformerEncoderLayer(d, heads, 2 * d, dropout, batch_first=True, norm_first=True, activation="gelu")
@@ -121,8 +128,8 @@ class SetTransformer(TwoHeadBase):
 class CNNNet(TwoHeadBase):
     """Model 4: ResNet-18 on the rendered (5,256,128) top-down image."""
 
-    def __init__(self, cand_f, use_skill=True, z_dim=256, height=256, width=128):
-        super().__init__(z_dim, BALL_F, cand_f, use_skill)
+    def __init__(self, cand_f, use_skill=True, z_dim=256, height=256, width=128, shot_outputs=1):
+        super().__init__(z_dim, BALL_F, cand_f, use_skill, shot_outputs=shot_outputs)
         self.render = TableRenderer(height, width)
         net = torchvision.models.resnet18(weights=None)
         net.conv1 = nn.Conv2d(5, 64, 7, 2, 3, bias=False)

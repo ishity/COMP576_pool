@@ -10,9 +10,13 @@ TABLE_W, TABLE_L = 0.9906, 1.9812  # pooltool default 7ft table (meters)
 BALL_R = 0.028575
 
 
-def load_states(path: str) -> Dict[str, np.ndarray]:
-    """Load a merged states.npz into a dict of numpy arrays."""
-    return dict(np.load(path))
+def load_states(path: str, labels3: Optional[str] = None) -> Dict[str, np.ndarray]:
+    """Load a merged states.npz (plus optional all-skill labels from src.data.relabel)."""
+    d = dict(np.load(path))
+    if labels3:
+        d["cand_label3"] = np.load(labels3)["cand_label3"]
+        assert d["cand_label3"].shape[:2] == d["cand_label"].shape
+    return d
 
 
 def split_masks(game_id: np.ndarray) -> Dict[str, np.ndarray]:
@@ -72,6 +76,8 @@ def to_tensors(d: Dict[str, np.ndarray], idx: np.ndarray, device: str) -> Dict[s
         "win": d["win"][idx].astype(np.float32),
         "shots_to_end": d["shots_to_end"][idx].astype(np.int64),
     }
+    if "cand_label3" in d:  # labels at all three skills (src.data.relabel), (N,K,3)
+        t["cand_label3"] = d["cand_label3"][idx]
     return {k: torch.as_tensor(v).to(device) for k, v in t.items()}
 
 

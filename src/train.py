@@ -35,10 +35,18 @@ def set_seed(seed: int) -> None:
 
 
 def losses(win_logit, shot_logit, b):
-    """BCE on the eventual winner + masked soft-label BCE on candidate success rates."""
+    """BCE on the eventual winner + masked soft-label BCE on candidate success rates.
+
+    A (B,K) shot logit is trained on the stored label at the shooter's skill; a (B,K,3) logit
+    (three-output head) on the labels at all three skills (``cand_label3``).
+    """
     l_win = F.binary_cross_entropy_with_logits(win_logit, b["win"])
-    m = b["cand_mask"]
-    l_shot = (F.binary_cross_entropy_with_logits(shot_logit, b["cand_label"], reduction="none") * m).sum() / m.sum()
+    if shot_logit.dim() == 3:
+        m = b["cand_mask"][..., None].expand_as(shot_logit)
+        target = b["cand_label3"]
+    else:
+        m, target = b["cand_mask"], b["cand_label"]
+    l_shot = (F.binary_cross_entropy_with_logits(shot_logit, target, reduction="none") * m).sum() / m.sum()
     return l_win, l_shot
 
 
@@ -73,7 +81,10 @@ def shot_metrics(score: np.ndarray, label: np.ndarray, mask: np.ndarray) -> dict
 
 @torch.no_grad()
 def predict(model, t, bs=1024):
-    """Return (win_prob, shot_prob) numpy arrays for every row of tensor dict ``t``."""
+    """Return (win_prob, shot_prob) numpy arrays for every row of tensor dict ``t``.
+
+    shot_prob is (N,K), or (N,K,3) for a three-output shot head.
+    """
     model.eval()
     n = len(t["win"])
     wins, shots = [], []
@@ -85,23 +96,52 @@ def predict(model, t, bs=1024):
     return torch.cat(wins).numpy(), torch.cat(shots).numpy()
 
 
-def evaluate(model, t) -> dict:
-    """Win-probability and shot-head metrics on a tensor split."""
+def shot_at_skill(model, t, s: int, ps=None) -> np.ndarray:
+    """(N,K) predicted success at skill ``s``: the s-th output of a three-output head, otherwise
+    the single output with the shooter's skill input forced to ``s``."""
+    if ps is not None and ps.ndim == 3:
+        return ps[..., s]
+    t2 = dict(t)
+    t2["skill_self"] = torch.full_like(t["skill_self"], s)
+    return predict(model, t2)[1]
+
+
+def evaluate(model, t, all_skills: bool = False) -> dict:
+    """Win-probability and shot-head metrics on a tensor split.
+
+    shot_* metrics compare the prediction at the shooter's own skill with the stored label.
+    If ``all_skills`` and the split has ``cand_label3``, shot3_<skill>_* metrics compare the
+    prediction at each skill with the relabeled success rates at that skill.
+    """
     pw, ps = predict(model, t)
     y = t["win"].cpu().numpy()
     eps = 1e-6
     m = t["cand_mask"].cpu().numpy()
     lab = t["cand_label"].cpu().numpy()
     late = t["shots_to_end"].cpu().numpy() < 3
+    if ps.ndim == 3:
+        own = t["skill_self"].cpu().numpy()
+        ps_own = np.take_along_axis(ps, own[:, None, None].repeat(ps.shape[1], 1), 2)[..., 0]
+    else:
+        ps_own = ps
     out = {
         "win_logloss": float(-np.mean(y * np.log(pw + eps) + (1 - y) * np.log(1 - pw + eps))),
         "win_brier": float(np.mean((pw - y) ** 2)),
         "win_ece": ece(pw, y),
         "win_acc": float(((pw > 0.5) == y).mean()),
         "win_acc_last3": float(((pw[late] > 0.5) == y[late]).mean()),
-        "shot_mse": float((((ps - lab) ** 2) * m).sum() / m.sum()),
+        "shot_mse": float((((ps_own - lab) ** 2) * m).sum() / m.sum()),
     }
-    out.update({f"shot_{k}": v for k, v in shot_metrics(ps, lab, m).items()})
+    out.update({f"shot_{k}": v for k, v in shot_metrics(ps_own, lab, m).items()})
+    if ps.ndim == 3:  # training target of the three-output head
+        lab3 = t["cand_label3"].cpu().numpy()
+        out["shot3_mse"] = float((((ps - lab3) ** 2) * m[..., None]).sum() / (3 * m.sum()))
+    if all_skills and "cand_label3" in t:
+        lab3 = t["cand_label3"].cpu().numpy()
+        for s, name in enumerate(["beginner", "intermediate", "expert"]):
+            p_s = shot_at_skill(model, t, s, ps)
+            out[f"shot3_{name}_mse"] = float((((p_s - lab3[..., s]) ** 2) * m).sum() / m.sum())
+            out.update({f"shot3_{name}_{k}": v for k, v in shot_metrics(p_s, lab3[..., s], m).items()})
     return out
 
 
@@ -114,9 +154,11 @@ def main():
     ap.add_argument("--data", default=None)
     ap.add_argument("--tag", default=None)
     ap.add_argument("--epochs", type=int, default=None)
+    ap.add_argument("--labels3", default=None, help="labels3.npz from src.data.relabel (all-skill labels)")
+    ap.add_argument("--shot_outputs", type=int, default=None, help="3 = one shot output per skill (needs labels3)")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config))
-    for k in ["max_train_states", "use_skill", "seed", "data", "epochs"]:
+    for k in ["max_train_states", "use_skill", "seed", "data", "epochs", "labels3", "shot_outputs"]:
         if getattr(a, k) is not None:
             cfg[k] = getattr(a, k)
     cfg.setdefault("max_train_states", None)
@@ -128,14 +170,18 @@ def main():
     set_seed(cfg["seed"])
     dev = "cuda" if torch.cuda.is_available() else "cpu"
 
-    d = load_states(cfg["data"])
+    cfg.setdefault("labels3", None)
+    cfg["shot_outputs"] = int(cfg.get("shot_outputs", 1))
+    assert cfg["shot_outputs"] == 1 or cfg["labels3"], "three-output head needs --labels3"
+    d = load_states(cfg["data"], cfg["labels3"])
     sp = split_masks(d["game_id"])
     tr_mask = subsample_games(d["game_id"], sp["train"], cfg["max_train_states"], cfg["seed"])
     T = {k: to_tensors(d, np.where(m)[0], dev) for k, m in [("train", tr_mask), ("val", sp["val"]), ("test", sp["test"])]}
     print({k: len(v["win"]) for k, v in T.items()}, flush=True)
 
     cand_f = T["train"]["cand_feats"].shape[-1]
-    model = build_model(cfg["model"], cand_f, use_skill=cfg["use_skill"], **cfg.get("model_kwargs", {})).to(dev)
+    model = build_model(cfg["model"], cand_f, use_skill=cfg["use_skill"], shot_outputs=cfg["shot_outputs"],
+                        **cfg.get("model_kwargs", {})).to(dev)
     n_params = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     n_tr = len(T["train"]["win"])
@@ -163,7 +209,8 @@ def main():
         tot /= steps_per_epoch
         val = evaluate(model, T["val"])
         # model selection: win log loss + shot mse (both are "lower is better")
-        sel = val["win_logloss"] + cfg["shot_weight"] * 10 * val["shot_mse"]
+        # (three-output head: mse against its own training target, the all-skill labels)
+        sel = val["win_logloss"] + cfg["shot_weight"] * 10 * val.get("shot3_mse", val["shot_mse"])
         row = {"epoch": ep, "train_win_bce": tot[0], "train_shot_bce": tot[1], **{f"val_{k}": v for k, v in val.items()},
                "select": sel, "time_min": (time.time() - t0) / 60}
         if writer is None:
@@ -182,7 +229,7 @@ def main():
 
     ck = torch.load(os.path.join(out_dir, "best.pt"), map_location=dev)
     model.load_state_dict(ck["model"])
-    test = evaluate(model, T["test"])
+    test = evaluate(model, T["test"], all_skills=True)
     test.update({"best_epoch": best_ep, "n_train_states": n_tr, "n_params": n_params,
                  "train_minutes": (time.time() - t0) / 60})
     # inference speed (batch of 1, GPU) for the speed comparison
@@ -198,8 +245,11 @@ def main():
     test["infer_ms_per_state"] = (time.time() - t1) * 10
     json.dump(test, open(os.path.join(out_dir, "test_metrics.json"), "w"), indent=2)
     pw, ps = predict(model, T["test"])
+    extra = {}
+    if "cand_label3" in T["test"]:  # prediction at every skill (forced input or per-skill output)
+        extra["shot_prob3"] = np.stack([shot_at_skill(model, T["test"], s, ps) for s in range(3)], -1)
     np.savez(os.path.join(out_dir, "test_predictions.npz"), win_prob=pw, shot_prob=ps,
-             idx=np.where(sp["test"])[0])
+             idx=np.where(sp["test"])[0], **extra)
     print("TEST", json.dumps(test, indent=1))
 
 
