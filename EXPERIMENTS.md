@@ -186,7 +186,7 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Notes: Fig 2's rack is held out, but it is not a member of the stored test split. Say so in any caption.
 
 ### [2026-11-06] win-probability baselines (prior, skills-only LR, skills + counts LR)
-- Config: src/models/win_baselines.py on data/main/states.npz (fit on train, report on test, 2,197 states); deterministic, no seed
+- Config: src/models/win_baselines.py on data/main/states.npz (fit on train, report on test, 2,255 states); deterministic, no seed
 - Goal: know how much of the win-head performance comes from the skill matchup alone.
 - Result (test; neural rows copied from results/<run>/test_metrics.json, seed 0):
 
