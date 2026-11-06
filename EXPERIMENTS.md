@@ -184,3 +184,26 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
     goes from 0.72 to 0.85, and player 0 won.
 - Outcome: success
 - Notes: Fig 2's rack is held out, but it is not a member of the stored test split. Say so in any caption.
+
+### [2026-11-06] win-probability baselines (prior, skills-only LR, skills + counts LR)
+- Config: src/models/win_baselines.py on data/main/states.npz (fit on train, report on test, 2,197 states); deterministic, no seed
+- Goal: know how much of the win-head performance comes from the skill matchup alone.
+- Result (test; neural rows copied from results/<run>/test_metrics.json, seed 0):
+
+  | model | log loss | Brier | ECE | acc | acc last 3 |
+  |---|---|---|---|---|---|
+  | constant prior (train rate 0.468) | 0.689 | 0.248 | 0.008 | 0.547 | 0.578 |
+  | LR on skills only | 0.560 | 0.188 | 0.034 | 0.702 | 0.707 |
+  | LR on ball counts only (heuristic) | 0.621 | 0.216 | 0.046 | 0.673 | 0.782 |
+  | LR on skills + ball counts | **0.541** | **0.180** | 0.070 | **0.761** | 0.785 |
+  | MLP | 0.569 | 0.191 | 0.048 | 0.731 | 0.751 |
+  | DeepSets | 0.548 | 0.182 | 0.033 | 0.736 | 0.759 |
+  | Set Transformer | 0.554 | 0.186 | 0.057 | 0.724 | 0.751 |
+  | Set Transformer, no skill | 0.626 | 0.219 | 0.025 | 0.653 | 0.731 |
+  | CNN | 0.584 | 0.197 | 0.059 | 0.705 | 0.736 |
+- Outcome: success (baseline run), negative finding for the neural win heads
+- Notes: the skill matchup alone explains almost all of the neural models' win performance, and
+  a 10-feature logistic regression (skills + ball counts) beats every neural model on log loss
+  and Brier. With 17k training states the networks do not extract more from ball positions than
+  the ball counts already give. Any win-probability claim in the poster must be made against
+  this baseline, not only against the counts-only heuristic.
