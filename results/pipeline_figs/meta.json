@@ -33,5 +33,47 @@
   "beginner_best_succ_beginner": 0.578125,
   "expert_best_succ_expert": 0.9375,
   "expert_pick_succ_beginner": 0.140625,
-  "beginner_pick_succ_expert": 0.859375
+  "beginner_pick_succ_expert": 0.859375,
+  "turnover_consistency_test": {
+    "set_transformer": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": 0.017746981233358383,
+      "frac_increase": 0.6976967370441459
+    },
+    "deepsets": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": -0.008644790388643742,
+      "frac_increase": 0.517274472168906
+    },
+    "mlp": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": -0.044510599225759506,
+      "frac_increase": 0.4107485604606526
+    },
+    "cnn": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": 0.07319484651088715,
+      "frac_increase": 0.6276391554702495
+    },
+    "set_transformer_noskill": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": -0.10004779696464539,
+      "frac_increase": 0.1381957773512476
+    },
+    "heuristic": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": -0.07062263513957465,
+      "frac_increase": 0.10460652591170826
+    },
+    "win_baselines": {
+      "n_turnovers": 1042,
+      "mean_change_former_shooter": -0.027325107707821292,
+      "frac_increase": 0.3800383877159309
+    }
+  },
+  "fig2_lines": [
+    "Set Transformer: P(player 0 wins)",
+    "DeepSets",
+    "LR on skills + ball counts"
+  ]
 }

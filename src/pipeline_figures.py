@@ -109,38 +109,91 @@ def model_win_prob(run: str, out: dict) -> np.ndarray:
     return pw
 
 
-def fig_win_curve(g, codes, win_prob, gid, name="fig_pipeline_win_curve"):
-    """P(player 0 wins) after each shot of one rack, model vs. eventual outcome."""
+def to_player0(shooter: np.ndarray, p_shooter: np.ndarray) -> np.ndarray:
+    """Convert P(current shooter wins) to P(player 0 wins)."""
+    return np.where(shooter == 0, p_shooter, 1 - p_shooter)
+
+
+def lr_win_prob(data: str, out: dict) -> np.ndarray:
+    """Skills + ball-counts logistic regression (src.models.win_baselines), refit on train."""
+    from sklearn.linear_model import LogisticRegression
+
+    from src.models.heuristic import count_features
+    from src.models.win_baselines import skill_features
+
+    d = dict(np.load(data))
+    tr = np.where(split_masks(d["game_id"])["train"])[0]
+    f = lambda dd, i: np.concatenate([skill_features(dd, i), count_features(dd, i)], 1)  # noqa: E731
+    lr = LogisticRegression(max_iter=2000).fit(f(d, tr), d["win"][tr])
+    return lr.predict_proba(f(out, np.arange(len(out["win"]))))[:, 1]
+
+
+def fig_win_curve(g, codes, win_probs: dict, gid, name="fig_pipeline_win_curve"):
+    """P(player 0 wins) before each shot of one rack, for several models, vs. eventual outcome.
+
+    ``win_probs`` maps a label to P(shooter wins) per state; the first entry is drawn as the
+    main (thick) line. The value at x=i is the estimate before shot i, so the effect of shot i
+    is the segment from i to i+1.
+    """
     shooter = g["shooter"]
-    p0 = np.where(shooter == 0, win_prob, 1 - win_prob)
     y0 = float(g["win"][0] if shooter[0] == 0 else 1 - g["win"][0])
     sk0 = int(g["skill_self"][0] if shooter[0] == 0 else g["skill_opp"][0])
     sk1 = int(g["skill_opp"][0] if shooter[0] == 0 else g["skill_self"][0])
-    x = np.arange(len(p0))
-    fig, ax = plt.subplots(figsize=(8, 3.4))
-    # shade turns of player 0 so the reader sees who is at the table
-    for i in x:
+    x = np.arange(len(shooter))
+    fig, ax = plt.subplots(figsize=(8.6, 3.6))
+    for i in x:  # shade turns of player 0 so the reader sees who is at the table
         if shooter[i] == 0:
             ax.axvspan(i - 0.5, i + 0.5, color="#f0efec", lw=0, zorder=0)
-    ax.plot(x, p0, "-", color=SERIES[0], lw=2, zorder=2, label="Model: P(player 0 wins)")
-    ax.axhline(y0, color=TEXT, lw=1.2, ls="--", zorder=1,
-               label=f"True outcome (player 0 {'won' if y0 else 'lost'})")
+    main = None
+    for j, (lab, pw) in enumerate(win_probs.items()):
+        p0 = to_player0(shooter, pw)
+        if main is None:
+            main = p0
+            ax.plot(x, p0, "-", color=SERIES[0], lw=2.2, zorder=2, label=lab)
+        else:
+            ax.plot(x, p0, "-", color=[SERIES[4], SERIES[5]][j - 1], lw=1.2, zorder=1.5, label=lab)
+    ax.axhline(y0, color=TEXT, lw=1.2, ls="--", zorder=1, label=f"True outcome (player 0 {'won' if y0 else 'lost'})")
     ax.axhline(0.5, color=TEXT2, lw=0.6, ls=":", zorder=1)
     mk = {"pot": ("o", SERIES[2]), "miss": ("X", SERIES[3]), "foul": ("s", SERIES[7])}
     for c, (m, col) in mk.items():
         sel = np.array([k == c for k in codes])
-        ax.scatter(x[sel], p0[sel], marker=m, s=60, color=col, edgecolor="white", lw=1.5, zorder=3,
+        ax.scatter(x[sel], main[sel], marker=m, s=60, color=col, edgecolor="white", lw=1.5, zorder=3,
                    label={"pot": "Pot (called ball made)", "miss": "Miss (legal, no pot)", "foul": "Foul"}[c])
     ax.set_ylim(-0.02, 1.02)
-    ax.set_xlim(-0.7, len(p0) - 0.3)
+    ax.set_xlim(-0.7, len(x) - 0.3)
     ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
     ax.set_xlabel("Shot number after the break (shaded = player 0 at the table)")
     ax.set_ylabel("P(player 0 wins)")
     ax.set_title(f"Held-out rack (not in training data): player 0 = {SKILLS[sk0]}, player 1 = {SKILLS[sk1]}\n"
-                 "Line = model estimate before each shot; marker = outcome of that shot", fontsize=9, color=TEXT)
+                 "Value at shot i = estimate before shot i; marker = outcome of shot i (its effect is the next segment)",
+                 fontsize=8.5, color=TEXT)
     style(ax)
     ax.legend(frameon=False, fontsize=7.5, loc="center left", bbox_to_anchor=(1.0, 0.5))
     save(fig, name)
+
+
+def turnover_consistency(data: str, runs: list) -> dict:
+    """Test-set check of perspective consistency.
+
+    For consecutive saved states of the same rack where the turn passed to the opponent, the
+    former shooter's win probability should usually go down. We report the mean change and
+    the fraction of turnovers after which it went up, per run (P(shooter) converted to the
+    former shooter's perspective with 1 - p).
+    """
+    d = dict(np.load(data))
+    te = np.where(split_masks(d["game_id"])["test"])[0]
+    g, sh = d["game_id"][te], d["shooter"][te]
+    same = g[1:] == g[:-1]
+    turn = same & (sh[1:] != sh[:-1])
+    out = {}
+    for r in runs:
+        z = np.load(os.path.join("results", r, "test_predictions.npz"))
+        assert np.array_equal(z["idx"], te)
+        pw = z["win_prob"] if "win_prob" in z.files else z["lr_skills_counts"]
+        dlt = (1 - pw[1:]) - pw[:-1]
+        out[r] = {"n_turnovers": int(turn.sum()), "mean_change_former_shooter": float(dlt[turn].mean()),
+                  "frac_increase": float((dlt[turn] > 0).mean())}
+    return out
 
 
 # ---------------------------------------------------------------- state figures (fig 1, 3)
@@ -307,7 +360,7 @@ def main():
         pw = model_win_prob(a.run, out)
         np.savez(os.path.join(OUT, "heldout_game.npz"), win_prob=pw, codes=np.array(codes), **out)
         json.dump(log, open(os.path.join(OUT, "heldout_game_shotlog.json"), "w"), indent=1)
-        fig_win_curve(out, codes, pw, rec["game_id"])
+        fig_win_curve(out, codes, {"Set Transformer: P(player 0 wins)": pw}, rec["game_id"])
         p0 = np.where(out["shooter"] == 0, pw, 1 - pw)
         meta.update({"game_for_fig2": rec, "win_model": a.run,
                      "fig2_p0_first": float(p0[0]), "fig2_p0_last": float(p0[-1]),
@@ -315,7 +368,15 @@ def main():
 
     if a.only == "win_plot":  # redraw Fig 2 from the saved held-out rack (no simulation)
         z = dict(np.load(os.path.join(OUT, "heldout_game.npz")))
-        fig_win_curve(z, list(z["codes"]), z["win_prob"], int(z["game_id"][0]) if "game_id" in z else -1)
+        probs = {"Set Transformer: P(player 0 wins)": model_win_prob(a.run, z),
+                 "DeepSets": model_win_prob("deepsets", z),
+                 "LR on skills + ball counts": lr_win_prob(a.data, z)}
+        np.savez(os.path.join(OUT, "heldout_game_winprobs.npz"), **{k.split(":")[0]: v for k, v in probs.items()})
+        assert np.allclose(probs["Set Transformer: P(player 0 wins)"], z["win_prob"], atol=1e-4)
+        fig_win_curve(z, list(z["codes"]), probs, -1)
+        meta["turnover_consistency_test"] = turnover_consistency(
+            a.data, ["set_transformer", "deepsets", "mlp", "cnn", "set_transformer_noskill", "heuristic", "win_baselines"])
+        meta["fig2_lines"] = list(probs)
 
     json.dump(meta, open(meta_path, "w"), indent=2)
     print(json.dumps(meta, indent=1))

@@ -207,3 +207,40 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
   and Brier. With 17k training states the networks do not extract more from ball positions than
   the ball counts already give. Any win-probability claim in the poster must be made against
   this baseline, not only against the counts-only heuristic.
+
+### [2026-11-06] win-curve perspective check (fig_pipeline_win_curve)
+- Config: src/pipeline_figures.py --only win_plot (no new simulation; same held-out rack 10000000), models seed 0
+- Goal: P(player 0 wins) rose after player 0's own fouls (shots 8 and 18) and dropped after
+  player 1's miss at shot 0. Check whether the shooter to player-0 conversion is wrong.
+- Result: the conversion is correct. Per state, `win` = 1 iff shooter == winner (player 0
+  states have win=1, player 1 states win=0 in this rack, player 0 won), and
+  P0 = p if shooter == 0 else 1 - p. The Set Transformer's raw outputs are p=0.70 before shot 8
+  (player 0 shooting) and p=0.19 before shot 9 (player 1 shooting, ball in hand), so
+  P0 goes 0.70 to 0.81. The jump comes from the model, not the plot.
+  Test-set check over 1,042 turnovers (consecutive saved states of the same rack where the
+  turn passes): mean change of the former shooter's predicted win probability, and the fraction of
+  turnovers after which it went UP:
+
+  | model | mean change | frac. up |
+  |---|---|---|
+  | Set Transformer | +0.018 | 0.70 |
+  | CNN | +0.073 | 0.63 |
+  | DeepSets | -0.009 | 0.52 |
+  | MLP | -0.045 | 0.41 |
+  | LR skills + counts | -0.027 | 0.38 |
+  | LR counts only (heuristic) | -0.071 | 0.10 |
+  | Set Transformer, no skill | -0.100 | 0.14 |
+
+  The cause is visible in the Set Transformer's calibration by skill pair (test): when an
+  intermediate shoots against a beginner it predicts 0.713 (observed 0.831); when the beginner
+  shoots it predicts 0.242 for the beginner (observed 0.170). The observed rates show that who is
+  at the table barely matters (0.831 vs 1 - 0.170 = 0.830), but the model underrates the
+  stronger player when the stronger player is shooting, so every handover from the stronger to
+  the weaker player looks like a gain for the stronger player.
+- Outcome: partial (no plotting bug; a model inconsistency found)
+- Notes: figure redrawn with DeepSets and the skills + counts LR as thin comparison lines and a
+  title that states the convention (value at shot i is the estimate before shot i; the effect of
+  shot i is the next segment). All three lines rise after shot 8, the Set Transformer the most.
+  Possible fixes for later: a perspective-consistency loss on consecutive states, or a
+  skill-pair calibration step. Added this turnover statistic to the comparison so it can be
+  tracked across seeds.
