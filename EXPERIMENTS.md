@@ -337,3 +337,65 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
   any skill-conditioned shot head can gain at the shooter's own skill and explains why the no-skill model
   ties the skill-conditioned one. Important framing for the poster: within our candidate set (ghost-ball
   pots, 3 speeds, no spin) skill mostly changes how likely a shot is, not which shot is best.
+
+### [2026-11-06] relabel at all three skills (full run)
+- Config: src/data/relabel.py, data/main/states.npz, M=16, stored candidates, 96 workers, seed=20261106
+  -> data/main/relabel3/labels3.npz (not committed), meta in data/main/relabel3/meta.json (copied to results/relabel3_meta.json)
+- Goal: labels at beginner, intermediate and expert for every state (train/val/test).
+- Result: all 21,521 states relabeled, 5.75 h wall (estimate was 4.3 h; slower because the CPUs were shared
+  with the seed runs at the start and with other jobs), 532 CPU-hours.
+  Label noise over all states (stored label vs. new label at the shooter's own skill, both M=16):
+  MAE 0.047, correlation 0.959, argmax agreement 0.544, same ball and pocket 0.881, regret of the stored argmax
+  under the new label 0.059. Best candidate differs between skills on all states: beginner vs intermediate
+  0.600 (ball or pocket 0.175), beginner vs expert 0.615 (0.221), intermediate vs expert 0.469 (0.158).
+- Outcome: success
+- Notes: matches the 300-state analysis: with M=16 the argmax is half noise, and real skill dependence of the
+  ball or pocket choice is about 5 to 11 points above the 12% noise floor. M=16 is clearly too small to rank
+  candidates reliably; an M ablation (32 or 64 on a subset) is the obvious next measurement.
+
+### [2026-11-06] shot heads (a) skill input, (b) no skill input, (c) three-output head
+- Config: scripts/step3_after_relabel.sh; configs/train_set_transformer.yaml, seeds 0, 1, 2.
+  (a) shot_a_skill_s*: stored single-skill labels, skill input (same as set_transformer, retrained with
+  all-skill test metrics); (b) shot_b_noskill_s*: stored labels, --use_skill 0; (c) shot_c_3head_s*:
+  --labels3 --shot_outputs 3 (shot head without skill input, one output per skill, trained on all-skill labels;
+  the win head still gets both skills). Summary: results/shot_abc_summary.csv
+- Goal: does training on labels at every skill make the recommendation skill-calibrated?
+- Result, test split vs. the NEW all-skill labels (mean over 3 seeds; regret against the noisy M=16 argmax):
+
+  | head | regret beg / int / exp | MSE beg / int / exp | win log loss |
+  |---|---|---|---|
+  | (a) skill input | 0.108 / 0.114 / 0.102 | 0.013 / 0.024 / 0.037 | 0.559 ± 0.010 |
+  | (b) no skill | 0.109 / 0.116 / 0.105 | 0.037 / 0.026 / 0.074 | 0.622 ± 0.005 |
+  | (c) three outputs | 0.112 / 0.115 / 0.104 | 0.014 / 0.024 / 0.037 | 0.554 ± 0.007 |
+
+  Fresh 64-rollout shot evaluation, results/shot_eval_abc (300 test states, same states as before, mean over
+  seeds, seed std in parentheses):
+
+  | method | beginner | intermediate | expert |
+  |---|---|---|---|
+  | teacher | 0.319 | 0.572 | 0.769 |
+  | (a) skill input | 0.286 (0.003) | 0.521 (0.005) | 0.702 (0.011) |
+  | (b) no skill | 0.285 (0.002) | 0.520 (0.003) | 0.690 (0.002) |
+  | (c) three outputs | 0.284 (0.001) | 0.520 (0.003) | 0.703 (0.005) |
+  | heuristic | 0.267 | 0.503 | 0.695 |
+  | random | 0.116 | 0.215 | 0.360 |
+
+  Paired differences per state (mean ± s.e.): (c) - (a): -0.002 / -0.001 / +0.001; (a) - (b): +0.001 / +0.001 /
+  +0.012 ± 0.006; (c) - (b): -0.001 / +0.000 / +0.014 ± 0.007.
+  Cross-skill (pick made for skill A, executed at skill B; per_state_cross.csv). Executed by a beginner:
+  (a) 0.286 / 0.287 / 0.284 for picks made for beginner / intermediate / expert, (c) 0.284 / 0.284 / 0.285;
+  teacher 0.319 / 0.310 / 0.295. Executed by an expert: (a) 0.688 / 0.688 / 0.702, (c) 0.685 / 0.682 / 0.703;
+  teacher 0.699 / 0.756 / 0.769.
+- Outcome: partial (negative for the main hypothesis)
+- Notes:
+  * Training on all-skill labels does not improve recommendations: (c) ties (a) at every skill. The skill input
+    makes the predicted success rates calibrated per skill (MSE 0.013 vs 0.037 for beginners, 0.037 vs 0.074 for
+    experts) but barely changes the ranking.
+  * The only skill effect on the chosen shot is for experts (+1.2 to +1.4 points over the skill-agnostic head,
+    about 2 s.e.). For beginners the models pick shots of the same quality whatever skill they are told, while
+    the teacher's beginner-specific pick is worth 2.4 points more than its expert pick. The models recover none
+    of that small gap.
+  * Why: the skill-dependent part of the label is small relative to M=16 noise (previous entry), and every head
+    stays about 3 to 7 points below the teacher at all skills. The bottleneck is ranking quality in general, not skill
+    conditioning. Next options: larger M (less noisy targets), a ranking loss (listwise softmax on the label),
+    or a candidate set where skill matters more (spin, safeties, bank shots).

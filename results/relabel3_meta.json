@@ -1,0 +1,44 @@
+{
+  "skills": {
+    "beginner": {
+      "phi_std": 1.5,
+      "v_rel_std": 0.2,
+      "spin_std": 0.12
+    },
+    "intermediate": {
+      "phi_std": 0.4,
+      "v_rel_std": 0.07,
+      "spin_std": 0.05
+    },
+    "expert": {
+      "phi_std": 0.12,
+      "v_rel_std": 0.03,
+      "spin_std": 0.02
+    }
+  },
+  "M": 16,
+  "seed": 20261106,
+  "n_states": 21521,
+  "cpu_hours": 531.8436226908366,
+  "label_noise": {
+    "mae": 0.047286760061979294,
+    "corr": 0.9585837647554438,
+    "argmax_agree": 0.5441661632823753,
+    "ball_pocket_agree": 0.8805352911110078,
+    "regret_of_stored_argmax_under_new": 0.05897146835923195
+  },
+  "skill_dependence_all_states": {
+    "beginner-intermediate": {
+      "frac_best_differs": 0.5996003903164351,
+      "frac_ball_or_pocket_differs": 0.1752706658612518
+    },
+    "beginner-expert": {
+      "frac_best_differs": 0.614516054086706,
+      "frac_ball_or_pocket_differs": 0.22131871195576414
+    },
+    "intermediate-expert": {
+      "frac_best_differs": 0.4686585195855211,
+      "frac_ball_or_pocket_differs": 0.15831048743088147
+    }
+  }
+}

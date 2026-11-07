@@ -17,8 +17,10 @@ METRICS = ["win_logloss", "win_brier", "win_ece", "win_acc", "shot_mse", "shot_t
 
 
 def run_dir(run: str, seed: int) -> str:
-    """Directory of one run at one seed."""
-    return os.path.join("results", run if seed == 0 else f"{run}_s{seed}")
+    """Directory of one run at one seed (seed 0 may be untagged, from train_all.sh)."""
+    if seed == 0 and os.path.exists(os.path.join("results", run, "test_metrics.json")):
+        return os.path.join("results", run)
+    return os.path.join("results", f"{run}_s{seed}")
 
 
 def turnover_frac_up(pred_path: str, d: dict) -> float:
