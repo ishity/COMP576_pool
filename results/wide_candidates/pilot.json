@@ -1,0 +1,8 @@
+{
+  "n_states": 32,
+  "wall_min": 31.312438853581746,
+  "cpu_s_per_state_mean": 586.8621256649494,
+  "cpu_s_per_state_max": 1805.5138421058655,
+  "mean_viable_pairs": 7.3125,
+  "est_full_hours_96_workers": 0.5094289285286019
+}

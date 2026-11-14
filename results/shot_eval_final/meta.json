@@ -1,0 +1,21 @@
+{
+  "n_states": 300,
+  "teacher_rollouts": 16,
+  "eval_rollouts": 64,
+  "teacher_seconds_per_state_mean": 28.06783785952462,
+  "wall_minutes": 23.137206848462423,
+  "runs": [
+    "results/shot_a_skill_s0",
+    "results/shot_a_skill_s1",
+    "results/shot_a_skill_s2",
+    "results/shot_a_m32_s0",
+    "results/shot_a_m32_s1",
+    "results/shot_a_m32_s2",
+    "results/shot_rank_m16_s0",
+    "results/shot_rank_m16_s1",
+    "results/shot_rank_m16_s2",
+    "results/shot_rank_m32_s0",
+    "results/shot_rank_m32_s1",
+    "results/shot_rank_m32_s2"
+  ]
+}

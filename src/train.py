@@ -50,6 +50,16 @@ def losses(win_logit, shot_logit, b):
     return l_win, l_shot
 
 
+def rank_loss(shot_logit, b, tau: float):
+    """Listwise softmax ranking loss (ListNet top-one): cross-entropy between the target
+    distribution softmax(label / tau) and softmax(logit) over each state's valid candidates."""
+    neg = torch.finfo(shot_logit.dtype).min / 2
+    m = b["cand_mask"] > 0
+    target = torch.softmax(torch.where(m, b["cand_label"] / tau, torch.full_like(shot_logit, neg)), 1)
+    logp = torch.log_softmax(torch.where(m, shot_logit, torch.full_like(shot_logit, neg)), 1)
+    return -(target * torch.where(m, logp, torch.zeros_like(logp))).sum(1).mean()
+
+
 def ece(p: np.ndarray, y: np.ndarray, n_bins: int = 10) -> float:
     """Expected calibration error with equal-width bins."""
     bins = np.minimum((p * n_bins).astype(int), n_bins - 1)
@@ -156,9 +166,13 @@ def main():
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--labels3", default=None, help="labels3.npz from src.data.relabel (all-skill labels)")
     ap.add_argument("--shot_outputs", type=int, default=None, help="3 = one shot output per skill (needs labels3)")
+    ap.add_argument("--shot_label", default=None, choices=["stored", "m32"],
+                    help="m32: average of the stored label and the relabel3 label at the shooter's skill (needs labels3)")
+    ap.add_argument("--rank_weight", type=float, default=None, help="weight of the listwise ranking loss (0 = off)")
+    ap.add_argument("--rank_tau", type=float, default=None, help="target softmax temperature of the ranking loss")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config))
-    for k in ["max_train_states", "use_skill", "seed", "data", "epochs", "labels3", "shot_outputs"]:
+    for k in ["max_train_states", "use_skill", "seed", "data", "epochs", "labels3", "shot_outputs", "shot_label", "rank_weight", "rank_tau"]:
         if getattr(a, k) is not None:
             cfg[k] = getattr(a, k)
     cfg.setdefault("max_train_states", None)
@@ -173,7 +187,15 @@ def main():
     cfg.setdefault("labels3", None)
     cfg["shot_outputs"] = int(cfg.get("shot_outputs", 1))
     assert cfg["shot_outputs"] == 1 or cfg["labels3"], "three-output head needs --labels3"
+    cfg["shot_label"] = cfg.get("shot_label") or "stored"
+    cfg["rank_weight"] = float(cfg.get("rank_weight") or 0.0)
+    cfg["rank_tau"] = float(cfg.get("rank_tau") or 0.05)
     d = load_states(cfg["data"], cfg["labels3"])
+    if cfg["shot_label"] == "m32":
+        # two independent M=16 estimates at the shooter's own skill -> one M=32 estimate
+        assert cfg["labels3"], "--shot_label m32 needs --labels3"
+        own = d["cand_label3"][np.arange(len(d["win"])), :, d["skill_self"]]
+        d["cand_label"] = (0.5 * (d["cand_label"] + own)).astype(np.float32)
     sp = split_masks(d["game_id"])
     tr_mask = subsample_games(d["game_id"], sp["train"], cfg["max_train_states"], cfg["seed"])
     T = {k: to_tensors(d, np.where(m)[0], dev) for k, m in [("train", tr_mask), ("val", sp["val"]), ("test", sp["test"])]}
@@ -198,8 +220,11 @@ def main():
         tot = np.zeros(2)
         for i in range(steps_per_epoch):
             b = batch(T["train"], perm[i * cfg["batch_size"] : (i + 1) * cfg["batch_size"]])
-            lw, ls = losses(*model(b), b)
+            win_logit, shot_logit = model(b)
+            lw, ls = losses(win_logit, shot_logit, b)
             loss = lw + cfg["shot_weight"] * ls
+            if cfg["rank_weight"] > 0:
+                loss = loss + cfg["rank_weight"] * rank_loss(shot_logit, b, cfg["rank_tau"])
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)

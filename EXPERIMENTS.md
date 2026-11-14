@@ -399,3 +399,42 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
     stays about 3 to 7 points below the teacher at all skills. The bottleneck is ranking quality in general, not skill
     conditioning. Next options: larger M (less noisy targets), a ranking loss (listwise softmax on the label),
     or a candidate set where skill matters more (spin, safeties, bank shots).
+
+### [2026-11-14] final round: M=32 labels and listwise ranking loss
+- Config: scripts/final_round_train_eval.sh; configs/train_set_transformer.yaml + --labels3, seeds 0, 1, 2.
+  shot_a_m32_s*: head (a) on "free M=32" labels (mean of the stored label and the relabel3 label at the
+  shooter's skill, two independent M=16 estimates). shot_rank_m16_s* / shot_rank_m32_s*: head (a) plus a
+  listwise softmax ranking loss (ListNet top-one: cross-entropy between softmax(label / 0.05) and
+  softmax(logits) over valid candidates, weight 1), on M=16 or M=32 labels. The calibration term is kept;
+  note it is our existing soft-label BCE, not an MSE. Evaluation: results/shot_eval_final (src/evaluate.py,
+  same 300 test states, seed 0, R=64, the existing shot_a_skill_s* runs included for paired comparison, no
+  cross-skill). Seed summary: results/shot_final_summary.csv
+- Goal: are the weak recommendations caused by label noise (M) or by the pointwise loss?
+- Result, fresh 64-rollout success (mean over seeds, seed std):
+
+  | method | beginner | intermediate | expert |
+  |---|---|---|---|
+  | teacher | 0.320 | 0.574 | 0.770 |
+  | (a) M=16 (reference) | 0.286 (0.003) | 0.520 (0.005) | 0.701 (0.012) |
+  | (a) M=32 | 0.287 (0.006) | 0.522 (0.002) | 0.695 (0.009) |
+  | (a) + rank, M=16 | 0.297 (0.002) | 0.525 (0.003) | 0.676 (0.001) |
+  | (a) + rank, M=32 | 0.295 (0.003) | 0.525 (0.003) | 0.679 (0.003) |
+  | heuristic | 0.267 | 0.506 | 0.693 |
+  | random | 0.115 | 0.212 | 0.338 |
+
+  Paired difference vs (a) M=16, per state (mean ± s.e.): M=32 +0.001 / +0.002 / -0.006 ± 0.003;
+  rank M=16 +0.011 ± 0.004 / +0.005 ± 0.005 / -0.024 ± 0.009; rank M=32 +0.009 ± 0.004 / +0.005 ± 0.005 / -0.022 ± 0.009.
+  Test win log loss (3 seeds): (a) 0.559 ± 0.010, M=32 0.553 ± 0.002, rank M=16 0.552 ± 0.007, rank M=32 0.550 ± 0.002.
+  Label-based regret (vs. each run's own training label, so M=16 and M=32 numbers are not comparable):
+  0.110 / 0.096 / 0.105 / 0.090; top-1 agreement 0.31 / 0.28 / 0.47 / 0.47.
+- Outcome: partial
+- Notes:
+  * Doubling M to 32 changes nothing measurable in real success: label noise at M=16 is not the bottleneck
+    for the pointwise head (or M=32 is still far too noisy to matter).
+  * The ranking loss is the first change that moves the beginner number: +1.1 points (about 3 s.e.), 35% of
+    the gap to the teacher closed from 0.034 to 0.023. It costs 2.4 points for experts (about 2.7 s.e.), where
+    it falls below the heuristic. A plausible reason: the target temperature 0.05 is fixed while success rates
+    for experts are compressed near the top (many near-ties), so the softmax target is flat and noisy for
+    experts and sharp for beginners. A per-skill temperature was not tried (experiments frozen).
+  * Top-1 agreement with the label jumps from 0.31 to 0.47 with the ranking loss, which mostly reflects the
+    loss optimizing that quantity; real success moves much less.
