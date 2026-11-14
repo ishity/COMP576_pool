@@ -431,10 +431,20 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Notes:
   * Doubling M to 32 changes nothing measurable in real success: label noise at M=16 is not the bottleneck
     for the pointwise head (or M=32 is still far too noisy to matter).
-  * The ranking loss is the first change that moves the beginner number: +1.1 points (about 3 s.e.), 35% of
+  * The ranking loss is the first change that moves the beginner number: +1.1 points (about 3 s.e.), 32% of
     the gap to the teacher closed from 0.034 to 0.023. It costs 2.4 points for experts (about 2.7 s.e.), where
     it falls below the heuristic. A plausible reason: the target temperature 0.05 is fixed while success rates
     for experts are compressed near the top (many near-ties), so the softmax target is flat and noisy for
     experts and sharp for beginners. A per-skill temperature was not tried (experiments frozen).
   * Top-1 agreement with the label jumps from 0.31 to 0.47 with the ranking loss, which mostly reflects the
     loss optimizing that quantity; real success moves much less.
+
+### [2026-11-14] wide candidate set: runtime pilot
+- Config: src/wide_candidates.py --pilot 32 (32 of the 300 shot-evaluation states, M=64 as two halves of 32, all three skills, seed=7)
+- Goal: runtime estimate before the full 300-state run.
+- Result: 31.3 min wall on 32 workers; 587 CPU-s per state on average (max 1,806 s); on average only 7.3 viable
+  ball-pocket pairs per state, so the wide set has about 66 candidates vs. at most 24 in the current set.
+  Estimate for 300 states on 96 workers: 0.51 h of compute, about 0.6 to 0.9 h wall with the slow-state tail.
+- Outcome: success
+- Notes: "all viable pairs" is often FEWER pairs than the current top-8, which also keeps non-viable (blocked)
+  pairs; the wide set is wider in speed x spin, not in pairs. The full run is waiting for approval.
