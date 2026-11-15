@@ -489,3 +489,20 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
   final_size_ablation (3 seeds, mean +- std), final_win_baselines, final_skill_dependence (wide-candidate run above),
   final_label_noise (stored vs relabel, binomial reference), final_win_curve.
 - Outcome: success
+
+### [2026-11-15] shot_eval_single (one evaluation run for final_shot_success)
+- Config: python -m src.evaluate --data data/main/states.npz --n_states 300 --seed 0 --eval_rollouts 64 --no_cross
+  --runs shot_a_skill_s{0,1,2} shot_b_noskill_s{0,1,2} shot_c_3head_s{0,1,2} shot_rank_m16_s{0,1,2}
+  (teacher M=16, heuristic and random are included by evaluate.py) -> results/shot_eval_single, 20.7 min wall.
+- Goal: cleanup only (experiments are frozen). Before this, final_shot_success mixed three evaluation runs
+  (shot_eval_abc, shot_eval_final, shot_eval_main_v2). Now every point comes from this single run.
+- Result: fresh 64-rollout success, beginner / intermediate / expert (mean +- std over 3 seeds):
+  teacher 0.319 / 0.575 / 0.769; (a) skill input 0.286 +- 0.003 / 0.520 +- 0.006 / 0.703 +- 0.011;
+  (b) no skill input 0.285 +- 0.002 / 0.521 +- 0.002 / 0.691 +- 0.001; (c) 3-skill head 0.284 +- 0.001 / 0.520 +- 0.003 /
+  0.704 +- 0.005; ranking loss (M=16) 0.297 +- 0.001 / 0.526 +- 0.003 / 0.678 +- 0.001;
+  heuristic 0.267 / 0.504 / 0.696; random 0.116 / 0.214 / 0.344.
+- Outcome: success
+- Notes: Conclusions unchanged from shot_eval_abc and shot_eval_final. Numbers differ by at most 0.003 from those runs
+  because evaluate.py draws rollouts from one RNG stream per state, so the set of evaluated runs changes which rollouts
+  each candidate gets. final_shot_success now shows teacher, (a), (b), (c), ranking loss (M=16), heuristic and random only.
+  M=32 labels, ranking M=32, DeepSets, MLP and CNN were dropped from the figure (still in EXPERIMENTS.md).

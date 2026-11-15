@@ -48,33 +48,23 @@ def seed_stats(df: pd.DataFrame, group_col: str, value_col: str, by: list) -> pd
 
 
 # ------------------------------------------------------------------ 1. shot success by skill
-SHOT_METHODS = [  # (label, eval dir, method prefix or exact name)
-    ("Simulator search (teacher)", "results/shot_eval_abc", "teacher"),
-    ("Set Transformer, skill input", "results/shot_eval_abc", "shot_a_skill"),
-    ("Set Transformer, no skill input", "results/shot_eval_abc", "shot_b_noskill"),
-    ("Set Transformer, 3-skill head", "results/shot_eval_abc", "shot_c_3head"),
-    ("Set Transformer, M=32 labels", "results/shot_eval_final", "shot_a_m32"),
-    ("+ ranking loss, M=16", "results/shot_eval_final", "shot_rank_m16"),
-    ("+ ranking loss, M=32", "results/shot_eval_final", "shot_rank_m32"),
-    ("DeepSets (seed 0)", "results/shot_eval_main_v2", "deepsets"),
-    ("MLP (seed 0)", "results/shot_eval_main_v2", "mlp"),
-    ("CNN on image (seed 0)", "results/shot_eval_main_v2", "cnn"),
-    ("Geometric heuristic", "results/shot_eval_abc", "heuristic"),
-    ("Random candidate", "results/shot_eval_abc", "random"),
+SHOT_EVAL = "results/shot_eval_single"  # one evaluation run for every method (same states, rollouts)
+SHOT_METHODS = [  # (label, method prefix or exact name)
+    ("Simulator search (teacher)", "teacher"),
+    ("Set Transformer, skill input", "shot_a_skill"),
+    ("Set Transformer, no skill input", "shot_b_noskill"),
+    ("Set Transformer, 3-skill head", "shot_c_3head"),
+    ("Set Transformer, ranking loss", "shot_rank_m16"),
+    ("Geometric heuristic", "heuristic"),
+    ("Random candidate", "random"),
 ]
 
 
 def shot_table() -> pd.DataFrame:
     """Rows: method label, skill, mean, std over seeds (0 for single runs), n seeds."""
     rows = []
-    cache = {}
-    for label, ev, m in SHOT_METHODS:
-        if ev not in cache:
-            p = os.path.join(ev, "per_state.csv")
-            if not os.path.exists(p):
-                continue
-            cache[ev] = pd.read_csv(p)
-        df = cache[ev]
+    df = pd.read_csv(os.path.join(SHOT_EVAL, "per_state.csv"))
+    for label, m in SHOT_METHODS:
         sub = df[(df.method == m) | df.method.str.fullmatch(m + r"_s\d")].copy()
         if sub.empty:
             continue
