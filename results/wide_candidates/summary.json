@@ -1,0 +1,86 @@
+{
+  "run": {
+    "n_states": 300,
+    "wall_min": 193.44369279940923,
+    "cpu_s_per_state_mean": 651.9880750044186,
+    "cpu_s_per_state_max": 10290.870979309082,
+    "mean_viable_pairs": 7.98,
+    "est_full_hours_96_workers": 0.565961870663558
+  },
+  "cur": {
+    "n_states": 300,
+    "mean_candidates": 16.14,
+    "own_best_success_halfB": [
+      0.32166666666666666,
+      0.5835416666666666,
+      0.7697916666666667
+    ],
+    "success_lost": [
+      [
+        0.0,
+        -0.003125,
+        0.02375
+      ],
+      [
+        0.019895833333333335,
+        0.0,
+        0.013541666666666667
+      ],
+      [
+        0.045,
+        0.011770833333333333,
+        0.0
+      ]
+    ],
+    "frac_ball_or_pocket_differs": {
+      "beginner-intermediate": 0.14666666666666667,
+      "beginner-expert": 0.18333333333333332,
+      "intermediate-expert": 0.14333333333333334
+    },
+    "frac_best_differs": {
+      "beginner-intermediate": 0.5633333333333334,
+      "beginner-expert": 0.6066666666666667,
+      "intermediate-expert": 0.5
+    },
+    "noise_floor_ball_or_pocket": 0.10555555555555556,
+    "noise_floor_best": 0.4666666666666667
+  },
+  "wide": {
+    "n_states": 300,
+    "mean_candidates": 28.17,
+    "own_best_success_halfB": [
+      0.32208333333333333,
+      0.589375,
+      0.7834375
+    ],
+    "success_lost": [
+      [
+        0.0,
+        -0.002395833333333333,
+        0.015729166666666666
+      ],
+      [
+        0.03916666666666667,
+        0.0,
+        0.019166666666666665
+      ],
+      [
+        0.0640625,
+        0.009895833333333333,
+        0.0
+      ]
+    ],
+    "frac_ball_or_pocket_differs": {
+      "beginner-intermediate": 0.14333333333333334,
+      "beginner-expert": 0.18,
+      "intermediate-expert": 0.1
+    },
+    "frac_best_differs": {
+      "beginner-intermediate": 0.7966666666666666,
+      "beginner-expert": 0.8333333333333334,
+      "intermediate-expert": 0.6433333333333333
+    },
+    "noise_floor_ball_or_pocket": 0.08333333333333333,
+    "noise_floor_best": 0.5966666666666667
+  }
+}
