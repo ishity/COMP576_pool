@@ -448,3 +448,44 @@ Running log of every experiment (including failures). Format follows CLAUDE.md S
 - Outcome: success
 - Notes: "all viable pairs" is often FEWER pairs than the current top-8, which also keeps non-viable (blocked)
   pairs; the wide set is wider in speed x spin, not in pairs. The full run is waiting for approval.
+- Correction (after the full run): "7.3 viable pairs" was wrong. The 7.3 counts viable CANDIDATES (pair x speed),
+  i.e. about 2.4 pairs; the full run gives 7.98 viable candidates = 3.1 distinct pairs per state, and the wide set
+  has 28.2 candidates on average (not about 66).
+
+### [2026-11-14] wide candidate set: full run (teacher only)
+- Config: python -m src.wide_candidates --data data/main/states.npz (same 300 test states as the shot evaluation,
+  M=64 per candidate and skill as two independent halves of 32, all three skills, seed=7, 96 workers).
+  Current set = stored candidates (up to 8 easiest pairs x 3 speeds, center spin; 16.1 candidates, 5.4 pairs on average).
+  Wide set = every unblocked pair (no occlusion, no jaw, cut <= 85 deg) x 3 speeds x 3 spins (b = -0.3, 0, +0.3);
+  28.2 candidates, 3.1 pairs on average. Best shot picked on half A, scored on half B (no winner's curse);
+  noise floor = half-A vs half-B argmax disagreement at the same skill.
+- Goal: does a wider candidate set make the best shot more skill-dependent?
+- Result (results/wide_candidates/summary.json):
+  - Ball or pocket of the best shot differs, beginner-intermediate / beginner-expert / intermediate-expert:
+    current 0.147 / 0.183 / 0.143 (noise floor 0.106); wide 0.143 / 0.180 / 0.100 (noise floor 0.083).
+  - Exact best candidate differs: current 0.56 / 0.61 / 0.50 (floor 0.47); wide 0.80 / 0.83 / 0.64 (floor 0.60).
+  - Success lost (half B, mean +- s.e. over 300 states):
+    beginner plays expert's best: current 0.024 +- 0.007, wide 0.016 +- 0.008;
+    expert plays beginner's best: current 0.045 +- 0.009, wide 0.064 +- 0.009;
+    intermediate plays beginner's best: current 0.020 +- 0.005, wide 0.039 +- 0.007.
+  - Own-best success (half B), beginner / intermediate / expert: current 0.322 / 0.584 / 0.770,
+    wide 0.322 / 0.589 / 0.783 (wide minus current +0.000 / +0.006 / +0.014, s.e. 0.006 / 0.005 / 0.004).
+  - Runtime: 193 min wall, 652 CPU-s per state on average, max 10,291 s (one state took 2.9 h).
+- Outcome: success (but the runtime was badly underestimated)
+- Notes:
+  - The wide set is not wider in pairs: 98.7% of states have wide pairs that are a subset of the current pairs. The current
+    top-8 already contains almost every unblocked pair, plus blocked ones. So this check effectively tests adding spin.
+  - Ball/pocket skill dependence is unchanged by spin: about 7 to 10 points above the noise floor for beginner vs expert in
+    both sets. Spin mostly adds near-tied variants, which pushes exact-argmax disagreement (and its noise floor) up.
+  - Spin helps the expert (+1.4 points) and not the beginner (+0.0). It makes the beginner's best shot worse for the expert
+    (loss 0.045 -> 0.064), consistent with the expert gaining options a beginner cannot use.
+  - Runtime: the pilot estimate (0.6 to 0.9 h) missed a single state whose rollouts took 2.9 h; the pilot max was 1,806 s.
+    The total wall time (3.2 h) exceeded the 2 h ask-first threshold; the user had approved the run based on the estimate.
+
+### [2026-11-14] final figure set
+- Config: python -m src.final_figures (300 dpi, PNG + PDF, no titles), figures/final_*.
+- Figures: final_shot_success (fresh 64-rollout success per skill; teacher, heuristic, random, a/b/c from shot_eval_abc;
+  a_m32 and ranking from shot_eval_final; DeepSets/MLP/CNN seed 0 from shot_eval_main_v2, so evaluation runs are mixed),
+  final_size_ablation (3 seeds, mean +- std), final_win_baselines, final_skill_dependence (wide-candidate run above),
+  final_label_noise (stored vs relabel, binomial reference), final_win_curve.
+- Outcome: success

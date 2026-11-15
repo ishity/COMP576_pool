@@ -185,8 +185,8 @@ def fig_skill_dependence():
     fig, ax = plt.subplots(1, 2, figsize=(7.2, 2.9), gridspec_kw={"width_ratios": [1.2, 1]})
     x = np.arange(len(pairs))
     w = 0.36
-    for j, (k, lab) in enumerate([("cur", "Current set (8 pairs x 3 speeds)"),
-                                  ("wide", "Wide set (all viable pairs x 3 speeds x 3 spins)")]):
+    for j, (k, lab) in enumerate([("cur", "Current set (up to 8 pairs x 3 speeds, no spin)"),
+                                  ("wide", "Unblocked pairs x 3 speeds x 3 spins")]):
         v = [s[k]["frac_ball_or_pocket_differs"][p] for p in pairs]
         ax[0].bar(x + (j - 0.5) * w, v, w * 0.92, color=SERIES[j], label=lab)
         ax[0].hlines(s[k]["noise_floor_ball_or_pocket"], x[0] - 0.5, x[-1] + 0.5, color=SERIES[j], lw=1.2, ls="--")

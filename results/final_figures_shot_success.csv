@@ -1,0 +1,37 @@
+label,skill,mean,std,n_seeds
+Simulator search (teacher),beginner,0.31895833333333334,0.0,1
+Simulator search (teacher),expert,0.7685416666666667,0.0,1
+Simulator search (teacher),intermediate,0.57171875,0.0,1
+"Set Transformer, skill input",beginner,0.2856944444444444,0.0031810653551886635,3
+"Set Transformer, skill input",expert,0.7018402777777778,0.010563333779824522,3
+"Set Transformer, skill input",intermediate,0.5209201388888889,0.00518283689901189,3
+"Set Transformer, no skill input",beginner,0.2851215277777778,0.0021883265634151106,3
+"Set Transformer, no skill input",expert,0.6896180555555556,0.0017680226877890798,3
+"Set Transformer, no skill input",intermediate,0.5197395833333333,0.0025146057717861147,3
+"Set Transformer, 3-skill head",beginner,0.28368055555555555,0.0009845449221359672,3
+"Set Transformer, 3-skill head",expert,0.7031076388888889,0.005415748453156793,3
+"Set Transformer, 3-skill head",intermediate,0.5199652777777778,0.002708500261949625,3
+"Set Transformer, M=32 labels",beginner,0.28661458333333334,0.005955974547670609,3
+"Set Transformer, M=32 labels",expert,0.69515625,0.008730136183232064,3
+"Set Transformer, M=32 labels",intermediate,0.5219965277777777,0.001886778206974723,3
+"+ ranking loss, M=16",beginner,0.2972048611111111,0.0014935601537501796,3
+"+ ranking loss, M=16",expert,0.6763194444444444,0.0004839361064154785,3
+"+ ranking loss, M=16",intermediate,0.525,0.00269477777505767,3
+"+ ranking loss, M=32",beginner,0.2952083333333333,0.0032304265015543395,3
+"+ ranking loss, M=32",expert,0.6789756944444444,0.002983030953406552,3
+"+ ranking loss, M=32",intermediate,0.5249131944444444,0.0024838526558964126,3
+DeepSets (seed 0),beginner,0.2896875,0.0,1
+DeepSets (seed 0),expert,0.6844791666666666,0.0,1
+DeepSets (seed 0),intermediate,0.5243229166666666,0.0,1
+MLP (seed 0),beginner,0.28822916666666665,0.0,1
+MLP (seed 0),expert,0.7038541666666667,0.0,1
+MLP (seed 0),intermediate,0.5204166666666666,0.0,1
+CNN on image (seed 0),beginner,0.28020833333333334,0.0,1
+CNN on image (seed 0),expert,0.6855208333333334,0.0,1
+CNN on image (seed 0),intermediate,0.52015625,0.0,1
+Geometric heuristic,beginner,0.2671354166666667,0.0,1
+Geometric heuristic,expert,0.6947916666666667,0.0,1
+Geometric heuristic,intermediate,0.5030729166666666,0.0,1
+Random candidate,beginner,0.11630208333333333,0.0,1
+Random candidate,expert,0.35953125,0.0,1
+Random candidate,intermediate,0.21494791666666666,0.0,1
