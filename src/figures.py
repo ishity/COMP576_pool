@@ -151,7 +151,7 @@ ROLE_COLORS = ["#ffffff", "#0b0b0b", SERIES[0], SERIES[1], "#a9a8a2"]  # cue, ei
 POCKETS_XY = {0: (0, 0), 1: (0, 0.9906), 2: (0, 1.9812), 3: (0.9906, 0), 4: (0.9906, 0.9906), 5: (0.9906, 1.9812)}
 
 
-def draw_table(ax, pos, on, roles):
+def draw_table(ax, pos, on, roles, num_fs=4.5):
     """Top-down table with balls colored by role relative to the shooter."""
     from matplotlib.patches import Circle, Rectangle
     ax.add_patch(Rectangle((0, 0), 0.9906, 1.9812, fc="#f2f4f1", ec=TEXT2, lw=1))
@@ -162,7 +162,7 @@ def draw_table(ax, pos, on, roles):
             r = int(np.argmax(roles[i]))
             ax.add_patch(Circle(pos[i], 0.028575, fc=ROLE_COLORS[r], ec=TEXT, lw=0.6, zorder=3))
             if i > 0:
-                ax.text(*pos[i], str(i), fontsize=4.5, ha="center", va="center", zorder=4,
+                ax.text(*pos[i], str(i), fontsize=num_fs, ha="center", va="center", zorder=4,
                         color="#ffffff" if r in (1, 2, 3) else TEXT)
     ax.set_xlim(-0.08, 1.07)
     ax.set_ylim(-0.08, 2.06)

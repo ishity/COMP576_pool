@@ -1,0 +1,16 @@
+label,skill,mean,std,n_seeds
+Simulator search (teacher),beginner,0.3190104166666667,0.0,1
+Simulator search (teacher),expert,0.7692708333333333,0.0,1
+Simulator search (teacher),intermediate,0.5746354166666666,0.0,1
+"Set Transformer, skill input",beginner,0.28586805555555556,0.0030442400168338318,3
+"Set Transformer, skill input",expert,0.7027951388888889,0.011483085638757476,3
+"Set Transformer, skill input",intermediate,0.5202951388888889,0.005758526412786502,3
+"Set Transformer, no skill input",beginner,0.28463541666666664,0.002339115788842256,3
+"Set Transformer, no skill input",expert,0.6912326388888889,0.0010524614282102253,3
+"Set Transformer, no skill input",intermediate,0.521267361111111,0.002495837101184293,3
+"Set Transformer, 3-output head",beginner,0.28368055555555555,0.0005520178158189002,3
+"Set Transformer, 3-output head",expert,0.7043923611111111,0.005409985195433996,3
+"Set Transformer, 3-output head",intermediate,0.5199131944444445,0.0032784931099148974,3
+Geometric heuristic,beginner,0.2671354166666667,0.0,1
+Geometric heuristic,expert,0.6959375,0.0,1
+Geometric heuristic,intermediate,0.50390625,0.0,1
